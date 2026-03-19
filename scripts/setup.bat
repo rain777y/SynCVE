@@ -140,27 +140,18 @@ echo.
 :: [6/7] Set up environment files
 echo %INFO% [6/7] Setting up environment files...
 
-if not exist "%ROOT%src\backend\backend.env" (
-    if exist "%ROOT%src\backend\backend.env.example" (
-        copy "%ROOT%src\backend\backend.env.example" "%ROOT%src\backend\backend.env" >nul
-        echo   %OK% Created src\backend\backend.env from template.
-        echo   %WARN% EDIT src\backend\backend.env with your API keys (Supabase, Gemini)!
+if not exist "%ROOT%.env" (
+    if exist "%ROOT%.env.example" (
+        copy "%ROOT%.env.example" "%ROOT%.env" >nul
+        echo   %OK% Created .env from template.
+        echo   %WARN% EDIT .env with your API keys (Supabase, Gemini)!
     )
 ) else (
-    echo   %OK% src\backend\backend.env already exists.
+    echo   %OK% .env already exists.
 )
-echo   %OK% Application settings in config\settings.yml (no edits needed).
+echo   %OK% Application settings in settings.yml (no edits needed).
 
-if not exist "%ROOT%src\frontend\.env" (
-    if exist "%ROOT%src\frontend\.env.example" (
-        copy "%ROOT%src\frontend\.env.example" "%ROOT%src\frontend\.env" >nul
-        echo   %OK% Created src\frontend\.env from template.
-    ) else (
-        echo   %WARN% No frontend .env.example found.
-    )
-) else (
-    echo   %OK% src\frontend\.env already exists.
-)
+echo   %OK% Frontend reads from root .env via env-cmd.
 echo.
 
 :: [7/7] Verify setup
@@ -179,7 +170,7 @@ echo %ESC%[92m  Setup Complete!%ESC%[0m
 echo %ESC%[92m====================================%ESC%[0m
 echo.
 echo   Next steps:
-echo     1. Edit src\backend\backend.env with your API keys
+echo     1. Edit .env with your API keys
 echo     2. Run scripts\start_backend.bat
 echo     3. Run scripts\start_frontend.bat
 echo     4. Open http://localhost:3000

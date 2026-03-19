@@ -1,8 +1,8 @@
 """
 Centralized configuration for SynCVE backend.
 
-  - Application settings  → config/settings.yml  (tracked in git)
-  - Secrets (API keys)     → src/backend/backend.env  (gitignored, loaded via dotenv)
+  - Application settings  → settings.yml   (project root, tracked in git)
+  - Secrets (API keys)     → .env           (project root, gitignored)
 """
 import os
 from dataclasses import dataclass, field
@@ -11,10 +11,10 @@ from typing import Any, Optional
 
 
 def _find_project_root() -> Path:
-    """Walk up from this file to find the project root (contains config/)."""
+    """Walk up from this file to find the project root (contains .git/)."""
     p = Path(__file__).resolve().parent
     for _ in range(5):
-        if (p / "config").is_dir() or (p / "requirements.txt").exists():
+        if (p / ".git").exists():
             return p
         p = p.parent
     return Path(__file__).resolve().parent.parent.parent
@@ -185,6 +185,9 @@ class SupabaseConfig:
 @dataclass(frozen=True)
 class GeminiConfig:
     api_key: str = ""
+    service_account_path: str = ""
+    gcp_project: str = ""
+    gcp_location: str = "us-central1"
     text_model: str = "gemini-2.5-flash"
     image_model: str = "gemini-2.5-flash-image"
     fallback_image_models: list = field(
@@ -193,10 +196,16 @@ class GeminiConfig:
     request_timeout: int = 120
     max_retries: int = 3
     retry_base_delay: float = 1.0
+    report_mode: str = "fast"           # "fast" = structured data only, "full" = fast + AI image
     noise_floor: float = 0.10
     keyframe_limit: int = 4
     visual_aspect_ratio: str = "16:9"
     visual_style_preset: str = "futuristic"
+
+
+@dataclass(frozen=True)
+class ClientConfig:
+    detection_interval: int = 2000
 
 
 @dataclass(frozen=True)
@@ -206,6 +215,7 @@ class AppConfig:
     deepface: DeepFaceConfig
     supabase: SupabaseConfig
     gemini: GeminiConfig
+    client: ClientConfig = field(default_factory=ClientConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +226,7 @@ def _load_dotenv_secrets():
     """Load secrets from .env file into os.environ."""
     try:
         from dotenv import load_dotenv
-        env_path = PROJECT_ROOT / "src" / "backend" / "backend.env"
+        env_path = PROJECT_ROOT / ".env"
         if env_path.exists():
             load_dotenv(env_path)
     except ImportError:
@@ -225,7 +235,7 @@ def _load_dotenv_secrets():
 
 def load_config() -> AppConfig:
     """Load settings from YAML, secrets from .env."""
-    settings_path = PROJECT_ROOT / "config" / "settings.yml"
+    settings_path = PROJECT_ROOT / "settings.yml"
     cfg = _load_yaml(settings_path)
 
     # Load secrets from .env into os.environ
@@ -278,16 +288,23 @@ def load_config() -> AppConfig:
         ),
         gemini=GeminiConfig(
             api_key=os.getenv("GEMINI_API_KEY", ""),
+            service_account_path=os.getenv("GOOGLE_APPLICATION_CREDENTIALS", ""),
+            gcp_project=os.getenv("GCP_PROJECT", _get(cfg, "gemini", "gcp_project", default="")),
+            gcp_location=os.getenv("GCP_LOCATION", _get(cfg, "gemini", "gcp_location", default="us-central1")),
             text_model=_get(cfg, "gemini", "text_model", default="gemini-2.5-flash"),
             image_model=_get(cfg, "gemini", "image_model", default="gemini-2.5-flash-image"),
             fallback_image_models=fallback_raw,
             request_timeout=int(_get(cfg, "gemini", "request_timeout", default=120)),
             max_retries=int(_get(cfg, "gemini", "max_retries", default=3)),
             retry_base_delay=float(_get(cfg, "gemini", "retry_base_delay", default=1.0)),
-            noise_floor=float(_get(cfg, "emotion", "noise_floor", default=0.10)),
-            keyframe_limit=int(_get(cfg, "emotion", "keyframe_limit", default=4)),
-            visual_aspect_ratio=_get(cfg, "emotion", "visual_aspect_ratio", default="16:9"),
-            visual_style_preset=_get(cfg, "emotion", "visual_style_preset", default="futuristic"),
+            report_mode=_get(cfg, "report", "mode", default="fast"),
+            noise_floor=float(_get(cfg, "report", "noise_floor", default=0.10)),
+            keyframe_limit=int(_get(cfg, "report", "keyframe_limit", default=4)),
+            visual_aspect_ratio=_get(cfg, "report", "visual_aspect_ratio", default="16:9"),
+            visual_style_preset=_get(cfg, "report", "visual_style_preset", default="futuristic"),
+        ),
+        client=ClientConfig(
+            detection_interval=int(_get(cfg, "client", "detection_interval", default=2000)),
         ),
     )
 

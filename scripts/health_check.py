@@ -166,23 +166,23 @@ def check_environment_files():
     print()
     print("  --- Environment Files ---")
 
-    backend_env = PROJECT_ROOT / "src" / "backend" / "backend.env"
-    backend_env_example = PROJECT_ROOT / "src" / "backend" / "backend.env.example"
+    backend_env = PROJECT_ROOT / ".env"
+    backend_env_example = PROJECT_ROOT / ".env.example"
     frontend_env = PROJECT_ROOT / "src" / "frontend" / ".env"
     frontend_env_example = PROJECT_ROOT / "src" / "frontend" / ".env.example"
 
     if backend_env.exists():
-        record(PASS, "backend.env", str(backend_env))
+        record(PASS, ".env", str(backend_env))
     else:
         if backend_env_example.exists():
-            record(FAIL, "backend.env", f"missing (copy from {backend_env_example})")
+            record(FAIL, ".env", f"missing (copy from {backend_env_example})")
         else:
-            record(FAIL, "backend.env", "missing (no template found either)")
+            record(FAIL, ".env", "missing (no template found either)")
 
     if backend_env_example.exists():
-        record(PASS, "backend.env.example", "template present")
+        record(PASS, ".env.example", "template present")
     else:
-        record(WARN, "backend.env.example", "template missing")
+        record(WARN, ".env.example", "template missing")
 
     if frontend_env.exists():
         record(PASS, "frontend .env", str(frontend_env))
@@ -203,7 +203,7 @@ def check_supabase_connectivity():
     print("  --- Supabase Connectivity ---")
     try:
         from dotenv import load_dotenv
-        env_path = PROJECT_ROOT / "src" / "backend" / "backend.env"
+        env_path = PROJECT_ROOT / ".env"
         if env_path.exists():
             load_dotenv(env_path)
     except ImportError:

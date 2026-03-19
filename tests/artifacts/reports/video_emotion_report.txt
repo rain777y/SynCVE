@@ -1,0 +1,5 @@
+Video Emotion Analysis Report
+Frames analyzed: 6
+Dominant: happy (100.00%)
+Peak: happy (100.00%)
+Averages: {'happy': 0.999996344248288}

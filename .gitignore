@@ -22,16 +22,17 @@ src/frontend/build/
 npm-debug.log*
 .eslintcache
 
-# ---------- Secrets ----------
-.env
+# ---------- Secrets & Credentials ----------
 *.env
-!.env.example
-!backend.env.example
-config/secrets.yml
-config/secrets.*.yml
+!*.env.example
 *.key
 *.pem
-src/backend/backend.env
+*.p12
+*.pfx
+*-sa.json
+*_sa.json
+*-credentials.json
+*service-account*.json
 
 # ---------- Virtual Environment ----------
 venv/
@@ -74,6 +75,10 @@ weights/
 
 # ---------- Dev (charts, docs, tests, setup) ----------
 dev/
+
+# ---------- Datasets (large files) ----------
+eval/datasets/
+eval/results/
 
 # ---------- Testing ----------
 .coverage

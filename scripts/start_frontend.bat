@@ -73,13 +73,13 @@ echo %OK% npm %NPMVER% detected.
 exit /b 0
 
 :checkEnvFile
-if not exist "%FRONTEND_DIR%\.env" (
-    echo %WARN% Frontend .env not found.
-    if exist "%FRONTEND_DIR%\.env.example" (
-        echo %INFO% Copy template: copy src\frontend\.env.example src\frontend\.env
+if not exist "%ROOT%.env" (
+    echo %WARN% Root .env not found.
+    if exist "%ROOT%.env.example" (
+        echo %INFO% Copy template: copy .env.example .env
     )
 ) else (
-    echo %OK% Frontend .env found.
+    echo %OK% Root .env found.
 )
 exit /b 0
 

@@ -47,6 +47,17 @@ def home():
     return f"<h1>Welcome to SynCVE Backend (DeepFace API v{DeepFace.__version__})!</h1>"
 
 
+@blueprint.route("/config")
+def client_config():
+    """Expose non-secret settings so the frontend has a single source of truth."""
+    cfg = get_config()
+    return {
+        "detector_backend": cfg.deepface.detector_backend,
+        "anti_spoofing": cfg.deepface.anti_spoofing,
+        "detection_interval": cfg.client.detection_interval,
+    }
+
+
 def extract_image_from_request(img_key: str) -> Union[str, np.ndarray]:
     """
     Extracts an image from the request either from json or a multipart/form-data file.
@@ -253,12 +264,13 @@ def pause_session():
     Expected JSON: { "session_id": "..." }
     """
     input_args = request.get_json() or {}
-    session_id = input_args.get("session_id")
-    
-    if not session_id:
-        return {"error": "session_id is required"}, 400
-        
-    result = session_manager.pause_session(session_id)
+
+    try:
+        validated = SessionStopRequest(**input_args)
+    except ValidationError as ve:
+        return {"error": "Invalid request parameters", "details": ve.errors()}, 422
+
+    result = session_manager.pause_session(validated.session_id)
     if "error" in result:
         status_code = result.get("status_code", 500)
         result.pop("status_code", None)

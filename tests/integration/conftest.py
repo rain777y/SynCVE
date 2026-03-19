@@ -3,7 +3,7 @@ Integration test configuration.
 These tests require:
 - Backend running on localhost:5005
 - GPU available (or CPU fallback)
-- Supabase connection (from backend.env)
+- Supabase connection (from .env)
 - Gemini API key (for report tests)
 """
 import pytest
@@ -14,7 +14,7 @@ from pathlib import Path
 
 BACKEND_URL = os.getenv("SYNCVE_TEST_BACKEND_URL", "http://localhost:5005")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-TEST_ASSETS_DIR = Path(__file__).parent.parent / "assets"
+ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
 
 
 @pytest.fixture(scope="session")
@@ -36,9 +36,9 @@ def test_face_image_base64():
     """Load a real test face image as base64."""
     # Try generated images first, then static fallback
     image_paths = [
-        TEST_ASSETS_DIR / "generated" / "neutral_face.jpg",
-        TEST_ASSETS_DIR / "generated" / "happy_face.jpg",
-        TEST_ASSETS_DIR / "static" / "test_face_basic.jpg",
+        ARTIFACTS_DIR / "images" / "neutral_face.jpg",
+        ARTIFACTS_DIR / "images" / "happy_face.jpg",
+        ARTIFACTS_DIR / "images" / "test_face_basic.jpg",
     ]
     for path in image_paths:
         if path.exists():
@@ -51,8 +51,8 @@ def test_face_image_base64():
 def no_face_image_base64():
     """Image with no face for negative testing."""
     paths = [
-        TEST_ASSETS_DIR / "generated" / "no_face.jpg",
-        TEST_ASSETS_DIR / "static" / "test_no_face.jpg",
+        ARTIFACTS_DIR / "images" / "no_face.jpg",
+        ARTIFACTS_DIR / "images" / "test_no_face.jpg",
     ]
     for path in paths:
         if path.exists():

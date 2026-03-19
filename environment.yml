@@ -1,0 +1,25 @@
+# SynCVE Conda Environment
+# conda env create -f environment.yml
+# conda activate SynCVE
+
+name: SynCVE
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  - cudatoolkit=11.8
+  - pytorch=2.1.*
+  - torchvision=0.16.*
+  - pytorch-cuda=11.8
+  - pip
+  - pip:
+      - -r requirements.txt
+
+variables:
+  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+  TF_CPP_MIN_LOG_LEVEL: "2"

@@ -154,7 +154,7 @@ const Home = () => {
 
       {/* Footer */}
       <footer className="home-footer">
-        <p>© 2025 SynCVE - Emotion Recognition System</p>
+        <p>© 2026 SynCVE - Emotion Recognition System</p>
       </footer>
     </div>
   );

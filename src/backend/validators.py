@@ -126,8 +126,8 @@ class SessionStartRequest(BaseModel):
         return v
 
 
-class SessionStopRequest(BaseModel):
-    """Validate /session/stop POST payload."""
+class _SessionIdMixin(BaseModel):
+    """Shared session_id field with UUID validation."""
 
     session_id: str = Field(..., min_length=1)
 
@@ -141,36 +141,20 @@ class SessionStopRequest(BaseModel):
         return v
 
 
-class ReportRequest(BaseModel):
+class SessionStopRequest(_SessionIdMixin):
+    """Validate /session/stop POST payload."""
+
+
+class ReportRequest(_SessionIdMixin):
     """Validate /session/report/emotion POST payload."""
 
-    session_id: str = Field(..., min_length=1)
     raw_vision_data: Optional[List[Dict[str, Any]]] = Field(default=None)
     max_keyframes: int = Field(default=4, ge=1, le=10)
 
-    @field_validator("session_id")
-    @classmethod
-    def validate_uuid_format(cls, v: str) -> str:
-        try:
-            _uuid.UUID(v)
-        except ValueError:
-            raise ValueError("session_id must be a valid UUID")
-        return v
 
-
-class VisualReportRequest(BaseModel):
+class VisualReportRequest(_SessionIdMixin):
     """Validate /session/report/visual POST payload."""
 
-    session_id: str = Field(..., min_length=1)
     raw_vision_data: Optional[List[Dict[str, Any]]] = Field(default=None)
     aspect_ratio: Optional[AspectRatio] = Field(default=None)
     style_preset: Optional[str] = Field(default=None, max_length=100)
-
-    @field_validator("session_id")
-    @classmethod
-    def validate_uuid_format(cls, v: str) -> str:
-        try:
-            _uuid.UUID(v)
-        except ValueError:
-            raise ValueError("session_id must be a valid UUID")
-        return v

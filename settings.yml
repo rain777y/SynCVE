@@ -1,0 +1,57 @@
+# SynCVE Application Settings (tracked in git)
+# Secrets (API keys) go in .env (gitignored)
+
+server:
+  host: "0.0.0.0"
+  port: 5005
+  debug: false
+  max_content_length: 16777216  # 16 MB
+  cors_origins:
+    - "http://localhost:3000"
+
+gpu:
+  cuda_visible_devices: "0"    # "0" = first GPU, "-1" = CPU only
+  tf_memory_fraction: 0.8
+  tf_allow_growth: true
+  tf_log_level: 2              # 0=all 1=info 2=warn 3=error
+  omp_num_threads: 0           # 0 = auto-detect
+
+client:
+  detection_interval: 2000       # ms, frontend capture rate
+
+deepface:
+  detector_backend: "retinaface"
+  model_name: "Facenet"
+  distance_metric: "cosine"
+  anti_spoofing: true
+  confidence_threshold: 0.1
+  ensemble:
+    enabled: true
+    detectors:
+      - retinaface
+      - mtcnn
+      - centerface
+    weights:
+      retinaface: 0.50
+      mtcnn: 0.30
+      centerface: 0.20
+
+gemini:
+  text_model: "gemini-2.5-flash"
+  image_model: "gemini-2.5-flash-image"
+  fallback_image_models:
+    - "gemini-3.1-flash-image-preview"
+    - "gemini-3-pro-image-preview"
+  request_timeout: 120
+  max_retries: 3
+  retry_base_delay: 1.0
+
+report:
+  mode: "fast"                 # "fast" = structured JSON only, "full" = fast + AI image
+  noise_floor: 0.10
+  keyframe_limit: 4
+  visual_aspect_ratio: "16:9"
+  visual_style_preset: "futuristic"
+
+supabase:
+  bucket_name: "syn_cve_assets"

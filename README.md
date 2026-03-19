@@ -65,7 +65,7 @@ SynCVE fuses DeepFace’s recognition stack with Docker-friendly Flask APIs and 
 
 ### Supporting Utilities
 
-- **Configuration storage**: Use `src/backend/backend.env` (falling back to `config/backend/`, `backend/.env`, or root `.env`).
+- **Configuration**: `settings.yml` (app config, tracked) + `.env` (secrets, gitignored).
 - **Logs**: `dev/log/` contains runtime evidence and diagnostics for troubleshooting GPU, CUDA, or dependency issues.
 - **Scripts**: Batch/PowerShell helpers in `dev/tests/` and root `.bat` wrappers orchestrate conda activation, dependency checks, and service startup/shutdown.
 
@@ -108,7 +108,7 @@ cd ../..
 
 ### Environment Variables
 
-- Backend config file: `src/backend/backend.env` (primary) with fallback paths described in `app.py`.
+- Backend secrets: `.env` at project root (copy from `.env.example`).
 - Frontend expects `src/frontend/.env` or shared `.env` entries for:
 
   ```

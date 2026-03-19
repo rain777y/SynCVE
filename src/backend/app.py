@@ -6,7 +6,7 @@ import sys
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-# Load config: settings from config/settings.yml, secrets from backend.env
+# Load config: settings from settings.yml, secrets from .env
 from src.backend.config import get_config
 
 cfg = get_config()

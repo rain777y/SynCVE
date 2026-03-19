@@ -45,6 +45,11 @@ DETECTOR_WEIGHTS = {
 # pylint: disable=broad-except
 
 
+def _clean_error_message(message: str) -> str:
+    """Normalize known typos in upstream DeepFace error messages."""
+    return message.replace("arraay", "array")
+
+
 def _to_bool(value: Union[str, bool, None], *, default: bool = True) -> bool:
     """
     Normalize user-provided truthy/falsey values coming from JSON or form data.
@@ -326,10 +331,6 @@ def analyze(
             If anti-spoof triggers a false positive, retry once with anti_spoofing disabled and
             mark the result so the caller can trace the bypass.
             """
-            # Normalize typo from upstream error messages for cleaner logging/UX
-            def _clean_message(message: str) -> str:
-                return message.replace("arraay", "array")
-
             enforce_flag = enforce_detection_flag if enforce_override is None else enforce_override
             try:
                 analysis = DeepFace.analyze(
@@ -350,7 +351,7 @@ def analyze(
                 # Preserve strict anti-spoofing; surface a friendly error upstream
                 if "Spoof detected" in str(backend_err):
                     raise backend_err
-                raise ValueError(_clean_message(str(backend_err)))
+                raise ValueError(_clean_error_message(str(backend_err)))
 
         if ensemble_enabled and len(detectors) > 1:
             backend_analyses = []
@@ -365,7 +366,7 @@ def analyze(
                     backend_analyses.append(analysis)
                     logger.info(f"Detector {backend} succeeded during ensemble analyze")
                 except Exception as backend_err:
-                    err_msg = str(backend_err).replace("arraay", "array")
+                    err_msg = _clean_error_message(str(backend_err))
                     if "Spoof detected" in str(backend_err):
                         spoof_detected = True
                         logger.warn(
@@ -385,7 +386,7 @@ def analyze(
                             logger.info(f"Detector {backend} succeeded after enforce_detection=False fallback")
                             continue
                         except Exception as retry_err:
-                            clean_retry = str(retry_err).replace("arraay", "array")
+                            clean_retry = _clean_error_message(str(retry_err))
                             backend_errors[backend] = clean_retry
                             logger.warn(
                                 f"Detector {backend} failed after fallback disable: {clean_retry}"
@@ -430,7 +431,7 @@ def analyze(
                 analysis = _analyze_single_backend(detector_backend)
                 logger.info(f"Detector {detector_backend} succeeded during analyze")
             except Exception as backend_err:
-                cleaned_err = str(backend_err).replace("arraay", "array")
+                cleaned_err = _clean_error_message(str(backend_err))
                 is_detection_fail = "Face could not be detected" in cleaned_err or "Face could not be detected in numpy array" in cleaned_err
                 if is_detection_fail and enforce_detection_flag:
                     try:
@@ -441,7 +442,7 @@ def analyze(
                         analysis.setdefault("detection_fallback", True)
                         logger.info(f"{detector_backend} succeeded after enforce_detection=False fallback")
                     except Exception as retry_err:
-                        cleaned_retry = str(retry_err).replace("arraay", "array")
+                        cleaned_retry = _clean_error_message(str(retry_err))
                         logger.error(f"{detector_backend} failed after fallback disable: {cleaned_retry}")
                         raise
                 elif "Spoof detected" in str(backend_err):

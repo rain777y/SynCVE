@@ -1,27 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './SystemStatus.css';
 
 /**
  * SystemStatus Component
- * 
+ *
  * Displays system status information including:
  * - Face detector backend
  * - Anti-spoofing status
  * - Detection interval
  * - Image quality settings
  * - GPU acceleration status
- * 
+ *
  * This component helps users understand the current optimization settings
  * and their impact on performance and accuracy.
  */
 const SystemStatus = () => {
-  const [systemInfo] = useState({
-    detector: process.env.REACT_APP_DETECTOR_BACKEND || 'opencv',
-    antiSpoofing: process.env.REACT_APP_ANTI_SPOOFING === '1',
-    interval: parseInt(process.env.REACT_APP_DETECTION_INTERVAL || '1500'),
-    imageQuality: 0.95, // Updated quality setting
+  const [systemInfo, setSystemInfo] = useState({
+    detector: 'retinaface',
+    antiSpoofing: true,
+    interval: 2000,
+    imageQuality: 0.95,
     videoResolution: '1280x720'
   });
+
+  // Fetch detection settings from backend (single source of truth: settings.yml)
+  useEffect(() => {
+    const serviceEndpoint = process.env.REACT_APP_SERVICE_ENDPOINT || 'http://localhost:5005';
+    fetch(`${serviceEndpoint}/config`)
+      .then(res => res.json())
+      .then(cfg => {
+        setSystemInfo(prev => ({
+          ...prev,
+          detector: cfg.detector_backend || prev.detector,
+          antiSpoofing: cfg.anti_spoofing !== false,
+          interval: cfg.detection_interval || prev.interval,
+        }));
+      })
+      .catch(() => {});
+  }, []);
 
   const [backendStatus, setBackendStatus] = useState({
     online: false,
@@ -29,15 +45,7 @@ const SystemStatus = () => {
     checking: true
   });
 
-  // Check backend status on mount
-  useEffect(() => {
-    checkBackendStatus();
-    // Check every 30 seconds
-    const interval = setInterval(checkBackendStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const checkBackendStatus = async () => {
+  const checkBackendStatus = useCallback(async () => {
     try {
       const serviceEndpoint = process.env.REACT_APP_SERVICE_ENDPOINT || 'http://localhost:5005';
       const response = await fetch(serviceEndpoint, {
@@ -67,7 +75,15 @@ const SystemStatus = () => {
         checking: false
       });
     }
-  };
+  }, []);
+
+  // Check backend status on mount
+  useEffect(() => {
+    checkBackendStatus();
+    // Check every 30 seconds
+    const interval = setInterval(checkBackendStatus, 30000);
+    return () => clearInterval(interval);
+  }, [checkBackendStatus]);
 
   // Get detector info
   const getDetectorInfo = (detector) => {

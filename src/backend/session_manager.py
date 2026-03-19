@@ -10,12 +10,13 @@ and in-memory caching.  Heavy-lifting is delegated to:
 """
 
 import base64
+import collections
 import json
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional
 
 from deepface.commons.logger import Logger
 
@@ -27,8 +28,8 @@ from src.backend.storage import get_supabase_client, upload_frame_to_storage
 from src.backend.emotion_analytics import aggregate_emotion_metrics  # noqa: F401
 from src.backend.report_generator import (  # noqa: F401
     generate_emotion_report,
+    generate_fast_report,
     generate_report,
-    generate_visual_report_auto,
     generate_visual_report_v3,
 )
 
@@ -63,8 +64,10 @@ def __getattr__(name: str):
 _last_upload_times: Dict[str, float] = {}
 UPLOAD_INTERVAL = 5.0  # seconds
 
-# Bounded cache for recent vision samples (fallback when Supabase is slow)
-_vision_cache: Dict[str, List[Dict[str, Any]]] = {}
+# Bounded cache for recent vision samples (fallback when Supabase is slow).
+# Uses collections.deque(maxlen=N) for O(1) append+eviction instead of
+# list.pop(0) which is O(n).
+_vision_cache: Dict[str, Deque[Dict[str, Any]]] = {}
 _VISION_CACHE_LIMIT = 120
 
 
@@ -76,10 +79,9 @@ def _cleanup_session_cache(session_id: str) -> None:
 
 def _cache_vision_sample(session_id: str, sample: Dict[str, Any]) -> None:
     """Append a bounded sample to the in-memory vision cache."""
-    bucket = _vision_cache.setdefault(session_id, [])
-    bucket.append(sample)
-    if len(bucket) > _VISION_CACHE_LIMIT:
-        bucket.pop(0)
+    if session_id not in _vision_cache:
+        _vision_cache[session_id] = collections.deque(maxlen=_VISION_CACHE_LIMIT)
+    _vision_cache[session_id].append(sample)
 
 
 # ============================================================================
@@ -207,9 +209,9 @@ def fetch_emotion_logs(session_id: str, limit: int = 500) -> List[Dict[str, Any]
                 logger.warn(f"Failed to fetch legacy emotion_logs for {session_id}: {e}")
 
     if not records:
-        cached = _vision_cache.get(session_id, [])
+        cached = _vision_cache.get(session_id)
         if cached:
-            return cached[-limit:]
+            return list(cached)[-limit:]
 
     return records
 
@@ -259,11 +261,11 @@ def stop_session(session_id: str) -> Dict[str, Any]:
         report = generate_report(session_id)
 
         update_payload = {
-            "ended_at": datetime.utcnow().isoformat(),
+            "ended_at": datetime.now(timezone.utc).isoformat(),
             "status": "completed",
             "summary": report.get("summary", ""),
             "recommendations": report.get("recommendations", ""),
-            "last_event_at": datetime.utcnow().isoformat(),
+            "last_event_at": datetime.now(timezone.utc).isoformat(),
         }
 
         supabase.table("sessions").update(update_payload).eq("id", session_id).execute()
@@ -286,7 +288,11 @@ def stop_session(session_id: str) -> Dict[str, Any]:
 
 
 def pause_session(session_id: str) -> Dict[str, Any]:
-    """Pause the session and trigger the visual-report pipeline."""
+    """Pause the session and generate a report.
+
+    report.mode="fast"  → structured JSON only (instant, 0 LLM calls)
+    report.mode="full"  → fast report + AI dashboard image (slow, 2 LLM calls)
+    """
     try:
         if not session_id:
             return {"error": "session_id is required", "status_code": 400}
@@ -296,24 +302,37 @@ def pause_session(session_id: str) -> Dict[str, Any]:
             raise ValueError("Database not configured")
 
         cfg = get_config().gemini
+        mode = cfg.report_mode  # "fast" or "full"
 
-        v3_result = generate_visual_report_v3(
-            session_id=session_id,
-            aspect_ratio=cfg.visual_aspect_ratio,
-            style_preset=cfg.visual_style_preset,
-        )
+        # --- Always: instant structured report ---
+        fast_result = generate_fast_report(session_id)
 
-        visual_entry = {
-            "visual_report_url": v3_result.get("public_url"),
-            "visual_prompt": v3_result.get("image_prompt"),
-            "dominant_emotion": (v3_result.get("stats_summary") or {}).get("dominant"),
-            "metrics": v3_result.get("metrics"),
-            "stats_summary": v3_result.get("stats_summary"),
-            "storage_path": v3_result.get("storage_path"),
-            "timestamp": datetime.utcnow().isoformat(),
+        report_entry: Dict[str, Any] = {
+            "report_mode": mode,
+            "dominant_emotion": fast_result.get("stats_summary", {}).get("dominant"),
+            "metrics": fast_result.get("metrics"),
+            "stats_summary": fast_result.get("stats_summary"),
+            "text_summary": fast_result.get("text_summary"),
+            "emotion_ranking": fast_result.get("emotion_ranking"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        # Merge metadata to avoid clobbering existing fields
+        # --- Optional: AI-generated dashboard image ---
+        if mode == "full" and get_genai_client():
+            try:
+                v3_result = generate_visual_report_v3(
+                    session_id=session_id,
+                    aspect_ratio=cfg.visual_aspect_ratio,
+                    style_preset=cfg.visual_style_preset,
+                )
+                report_entry["visual_report_url"] = v3_result.get("public_url")
+                report_entry["image_prompt"] = v3_result.get("image_prompt")
+                report_entry["storage_path"] = v3_result.get("storage_path")
+            except Exception as img_err:
+                logger.warn(f"Visual report generation failed (non-fatal): {img_err}")
+                report_entry["visual_report_error"] = str(img_err)
+
+        # --- Update session in DB ---
         existing_meta: Dict[str, Any] = {}
         try:
             meta_resp = (
@@ -326,37 +345,31 @@ def pause_session(session_id: str) -> Dict[str, Any]:
             if getattr(meta_resp, "data", None):
                 existing_meta = meta_resp.data.get("metadata") or {}
         except Exception as e:
-            logger.warn(f"Could not fetch existing session metadata for merge: {e}")
+            logger.warn(f"Could not fetch existing session metadata: {e}")
 
-        merged_meta = {**existing_meta, "visual_report_v3": visual_entry}
+        merged_meta = {**existing_meta, "pause_report": report_entry}
         update_payload = {
             "status": "paused",
             "metadata": merged_meta,
-            "summary": json.dumps(visual_entry),
-            "last_event_at": datetime.utcnow().isoformat(),
+            "summary": fast_result.get("text_summary", ""),
+            "last_event_at": datetime.now(timezone.utc).isoformat(),
         }
         supabase.table("sessions").update(update_payload).eq("id", session_id).execute()
         _record_session_event(
             session_id, "paused",
             reason="pause endpoint",
-            metadata={"metrics": v3_result.get("stats_summary")},
-        )
-        _store_report_metadata(
-            session_id,
-            "visual_v3",
-            model_name=cfg.image_model,
-            prompt=v3_result.get("image_prompt"),
-            public_url=visual_entry.get("visual_report_url"),
-            storage_path=visual_entry.get("storage_path"),
-            metadata={"stats_summary": v3_result.get("stats_summary")},
+            metadata={"report_mode": mode, "dominant": report_entry.get("dominant_emotion")},
         )
 
-        return {
+        response = {
             "status": "paused",
-            "image_url": visual_entry.get("visual_report_url"),
-            "message": "Session paused. Dashboard image generated.",
-            "visual_report": visual_entry,
+            "report_mode": mode,
+            "message": "Session paused. Report generated.",
+            "report": report_entry,
+            # Backward compat: frontend reads image_url
+            "image_url": report_entry.get("visual_report_url"),
         }
+        return response
 
     except ValueError as e:
         logger.warn(f"Pause session aborted: {e}")
@@ -415,6 +428,9 @@ def log_data(
 
         metadata_payload = metadata or {}
 
+        # Single client lookup for both frame upload and DB inserts
+        supabase = get_supabase_client()
+
         # Upload frame (throttled)
         if image_data is not None:
             import numpy as np
@@ -441,7 +457,6 @@ def log_data(
 
             now = time.time()
             last_upload = _last_upload_times.get(session_id, 0)
-            supabase = get_supabase_client()
 
             if supabase is None:
                 logger.warn("Supabase not configured; skipping frame upload to storage.")
@@ -469,7 +484,6 @@ def log_data(
             "metadata": metadata_payload,
         })
 
-        supabase = get_supabase_client()
         if supabase:
             vision_payload = {
                 **payload,
@@ -479,7 +493,7 @@ def log_data(
             supabase.table("emotion_logs").insert(payload).execute()
             try:
                 supabase.table("sessions").update({
-                    "last_event_at": datetime.utcnow().isoformat(),
+                    "last_event_at": datetime.now(timezone.utc).isoformat(),
                 }).eq("id", session_id).execute()
             except Exception as e:
                 logger.warn(f"Could not update session heartbeat: {e}")

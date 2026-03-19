@@ -11,23 +11,37 @@
  * - Memory leak prevention with proper cleanup
  * - Performance optimization
  * 
- * @version 1.0.0
- * @date 2025-10-25
+ * @version 1.1.0
+ * @date 2026-03-20
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import EmotionProgressBars from './EmotionProgressBars';
+import SessionReport from './SessionReport';
 import SystemStatus from './SystemStatus';
 import './EmotionDetector.css';
 
 const EmotionDetector = () => {
   const { user } = useAuth();
-  // Configuration from environment variables
+  // Configuration
   const serviceEndpoint = process.env.REACT_APP_SERVICE_ENDPOINT || 'http://localhost:5005';
-  const faceDetector = process.env.REACT_APP_DETECTOR_BACKEND || 'retinaface';
-  const antiSpoofing = process.env.REACT_APP_ANTI_SPOOFING !== '0';
-  const defaultInterval = parseInt(process.env.REACT_APP_DETECTION_INTERVAL || '1500', 10);
+  const [faceDetector, setFaceDetector] = useState('retinaface');
+  const [antiSpoofing, setAntiSpoofing] = useState(true);
+  const [defaultInterval, setDefaultInterval] = useState(2000);
+
+  // Fetch detection settings from backend (single source of truth: settings.yml)
+  useEffect(() => {
+    fetch(`${serviceEndpoint}/config`)
+      .then(res => res.json())
+      .then(cfg => {
+        setFaceDetector(cfg.detector_backend || 'retinaface');
+        setAntiSpoofing(cfg.anti_spoofing !== false);
+        setDefaultInterval(cfg.detection_interval || 2000);
+        setDetectionInterval(cfg.detection_interval || 2000);
+      })
+      .catch(() => {}); // fallback to defaults
+  }, [serviceEndpoint]);
 
   // Refs for video and canvas
   const videoRef = useRef(null);
@@ -62,7 +76,7 @@ const EmotionDetector = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [sessionId, setSessionId] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [reportUrl, setReportUrl] = useState(null);
+  const [reportData, setReportData] = useState(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // Initialize webcam
@@ -223,8 +237,6 @@ const EmotionDetector = () => {
       }
       setShowSpinner(false);
       isProcessingRef.current = false;
-      setShowSpinner(false);
-      isProcessingRef.current = false;
     }
   }, [serviceEndpoint, faceDetector, antiSpoofing]); // sessionId removed - using sessionIdRef instead
 
@@ -305,12 +317,13 @@ const EmotionDetector = () => {
       });
       const data = await response.json();
 
-      // Backend returns 'image_url', but also check 'report_url' for compatibility
-      const reportImageUrl = data.image_url || data.report_url;
-      if (reportImageUrl) {
-        setReportUrl(reportImageUrl);
-      } else {
-        setErrorMessage("Report generation failed: No URL returned.");
+      if (data.report) {
+        setReportData(data.report);
+      } else if (data.image_url) {
+        // Backward compat: old full-mode response
+        setReportData({ visual_report_url: data.image_url });
+      } else if (data.error) {
+        setErrorMessage(data.error);
       }
     } catch (err) {
       console.error("Error pausing session:", err);
@@ -322,7 +335,7 @@ const EmotionDetector = () => {
 
   // Resume Detection
   const resumeDetection = () => {
-    setReportUrl(null);
+    setReportData(null);
     setIsPaused(false);
     setIsDetecting(true);
     // Manually restart interval without calling /session/start
@@ -340,7 +353,7 @@ const EmotionDetector = () => {
 
     setIsDetecting(false);
     setIsPaused(false);
-    setReportUrl(null);
+    setReportData(null);
 
     // Clear interval
     if (intervalRef.current) {
@@ -521,30 +534,27 @@ const EmotionDetector = () => {
         <SystemStatus />
 
         {/* Report Modal */}
-        {(isGeneratingReport || reportUrl) && (
+        {(isGeneratingReport || reportData) && (
           <div className="modal-overlay" style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
           }}>
             <div className="modal-content" style={{
-              background: '#1a1a1a', padding: '20px', borderRadius: '12px', maxWidth: '90%', maxHeight: '90%', overflow: 'auto',
-              border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center'
+              background: '#1a1a1a', padding: '24px', borderRadius: '12px', maxWidth: '960px', width: '95%', maxHeight: '90vh', overflow: 'auto',
+              border: '1px solid rgba(255,255,255,0.1)'
             }}>
               {isGeneratingReport ? (
-                <div style={{ padding: '40px' }}>
+                <div style={{ padding: '40px', textAlign: 'center' }}>
                   <div className="spinner-small" style={{ margin: '0 auto 20px' }}></div>
-                  <h3>Generating Visual Report...</h3>
-                  <p>Analyzing your session and creating art with Gemini AI.</p>
+                  <h3 style={{ color: '#fff' }}>Analyzing Session...</h3>
+                  <p style={{ color: '#888' }}>Aggregating emotion data</p>
                 </div>
               ) : (
-                <div>
-                  <h2 style={{ marginBottom: '15px', color: '#fff' }}>Session Visual Report</h2>
-                  <img src={reportUrl} alt="Visual Report" style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: '8px', marginBottom: '20px' }} />
-                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                    <button onClick={resumeDetection} className="btn btn-start">▶ Resume Session</button>
-                    <button onClick={stopDetection} className="btn btn-stop">⏹ End Session</button>
-                  </div>
-                </div>
+                <SessionReport
+                  report={reportData}
+                  onResume={resumeDetection}
+                  onStop={stopDetection}
+                />
               )}
             </div>
           </div>

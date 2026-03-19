@@ -13,7 +13,7 @@ call conda activate SynCVE
 echo.
 echo [1/3] Unit Tests (no backend required)...
 echo ----------------------------------------
-python -m pytest src/backend/tests -v --tb=short
+python -m pytest tests/unit/ -v --tb=short
 set UNIT_EXIT=%ERRORLEVEL%
 
 echo.

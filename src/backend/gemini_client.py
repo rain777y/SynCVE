@@ -23,21 +23,46 @@ _initialized = False
 
 
 def _ensure_initialized():
-    """One-time initialization of the Google GenAI SDK."""
+    """One-time initialization of the Google GenAI SDK.
+
+    Auth priority:
+    1. Vertex AI with service account JSON (GOOGLE_APPLICATION_CREDENTIALS)
+    2. API key (GEMINI_API_KEY)
+    """
     global _genai_client, _initialized
     if _initialized:
         return
 
     _initialized = True
     cfg = get_config().gemini
-    if not cfg.api_key:
-        logger.warn("Gemini API Key not found in environment.")
-        return
 
     try:
+        import os
         from google import genai
-        _genai_client = genai.Client(api_key=cfg.api_key)
-        logger.info("Google GenAI client initialized successfully.")
+        from pathlib import Path
+
+        sa_path = cfg.service_account_path
+        # Auto-detect SA JSON next to backend code
+        if not sa_path:
+            candidate = Path(__file__).parent / "sightline-backend-sa.json"
+            if candidate.exists():
+                sa_path = str(candidate)
+
+        if sa_path and Path(sa_path).exists():
+            os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", sa_path)
+            project = cfg.gcp_project or "sightline-hackathon"
+            location = cfg.gcp_location or "us-central1"
+            _genai_client = genai.Client(
+                vertexai=True,
+                project=project,
+                location=location,
+            )
+            logger.info(f"GenAI client initialized via Vertex AI (project={project}).")
+        elif cfg.api_key:
+            _genai_client = genai.Client(api_key=cfg.api_key)
+            logger.info("GenAI client initialized via API key.")
+        else:
+            logger.warn("No Gemini credentials found (no SA JSON, no API key).")
     except Exception as e:
         logger.error(f"Failed to initialize GenAI client: {e}")
 
@@ -124,11 +149,10 @@ def resolve_image_model() -> str:
     if validate_model_available(primary):
         return primary
 
-    fallback_str = cfg.fallback_image_model
     fallbacks = [
-        fb.strip()
-        for fb in fallback_str.split(",")
-        if fb.strip() and fb.strip() != primary
+        fb.strip() if isinstance(fb, str) else fb
+        for fb in cfg.fallback_image_models
+        if (fb.strip() if isinstance(fb, str) else fb) != primary
     ]
     for fallback in fallbacks:
         logger.info(f"Trying fallback image model: {fallback}")
@@ -221,7 +245,7 @@ def generate_image(
 
     cfg = get_config().gemini
     model_name = model or cfg.image_model
-    fallback_str = fallback_model or cfg.fallback_image_model
+    fallback_list = fallback_model or cfg.fallback_image_models
     ar = aspect_ratio or cfg.visual_aspect_ratio
     types = _get_types()
 
@@ -242,11 +266,12 @@ def generate_image(
         return _render(model_name)
     except Exception as e:
         logger.error(f"Gemini image generation failed with model '{model_name}': {e}")
-        # Try each fallback in the comma-separated chain
+        # Try each fallback in the chain
+        if isinstance(fallback_list, str):
+            fallback_list = [fb.strip() for fb in fallback_list.split(",") if fb.strip()]
         fallbacks = [
-            fb.strip()
-            for fb in fallback_str.split(",")
-            if fb.strip() and fb.strip() != model_name
+            fb for fb in fallback_list
+            if fb and fb != model_name
         ]
         for fb in fallbacks:
             try:

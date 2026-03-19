@@ -8,6 +8,7 @@ tests run without a GPU, database, or network access.
 import base64
 import os
 import sys
+import types as _types
 from unittest.mock import MagicMock, patch
 from io import BytesIO
 
@@ -22,6 +23,87 @@ os.environ.setdefault("SUPABASE_KEY", "fake-key")
 os.environ.setdefault("GEMINI_API_KEY", "fake-gemini-key")
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+
+# ---------------------------------------------------------------------------
+# Lightweight deepface stubs injected into sys.modules BEFORE any application
+# module is imported.  This prevents the real deepface import chain from
+# cascading into heavyweight detector backends (RetinaFace -> tf-keras, etc.)
+# which may not be available in the test environment.
+# ---------------------------------------------------------------------------
+
+def _install_deepface_stubs():
+    """Create minimal mock modules for deepface so imports resolve without
+    pulling in TensorFlow, RetinaFace, or any other heavy dependency."""
+
+    # Only install stubs if the real deepface cannot be fully imported.
+    # This lets the suite run both in lightweight CI and in a full dev env.
+    try:
+        from deepface import DeepFace as _real  # noqa: F401
+        # If we got here the real deepface is importable -- nothing to do.
+        return
+    except Exception:
+        pass
+
+    def _make_module(name, attrs=None):
+        mod = _types.ModuleType(name)
+        mod.__package__ = name.rsplit(".", 1)[0] if "." in name else name
+        mod.__path__ = []
+        for k, v in (attrs or {}).items():
+            setattr(mod, k, v)
+        sys.modules[name] = mod
+        return mod
+
+    # -- deepface (top-level) ------------------------------------------------
+    _make_module("deepface")
+
+    # -- deepface.commons & deepface.commons.logger --------------------------
+    _make_module("deepface.commons")
+
+    # Provide a Logger class that behaves like the real one (callable, returns
+    # an object with info/warn/error/debug methods).
+    class _StubLogger:
+        def __init__(self, *a, **kw):
+            pass
+        def info(self, *a, **kw): pass
+        def warn(self, *a, **kw): pass
+        def error(self, *a, **kw): pass
+        def debug(self, *a, **kw): pass
+
+    _make_module("deepface.commons.logger", {"Logger": _StubLogger})
+
+    # -- deepface.commons.image_utils ----------------------------------------
+    def _load_image(img, *a, **kw):
+        """Stub: return a tiny numpy array when asked to load an image."""
+        if isinstance(img, np.ndarray):
+            return img, "numpy"
+        return np.zeros((64, 64, 3), dtype=np.uint8), "base64"
+
+    def _load_image_from_file_storage(file):
+        return np.zeros((64, 64, 3), dtype=np.uint8)
+
+    _make_module("deepface.commons.image_utils", {
+        "load_image": _load_image,
+        "load_image_from_file_storage": _load_image_from_file_storage,
+    })
+
+    # -- deepface.DeepFace ---------------------------------------------------
+    _mock_deepface_obj = MagicMock()
+    _mock_deepface_obj.__version__ = "0.0.99"
+    _make_module("deepface.DeepFace", {
+        "__version__": "0.0.99",
+        "analyze": _mock_deepface_obj.analyze,
+        "represent": _mock_deepface_obj.represent,
+        "verify": _mock_deepface_obj.verify,
+    })
+    # Also expose DeepFace as an attribute on the top-level deepface module.
+    sys.modules["deepface"].DeepFace = sys.modules["deepface.DeepFace"]
+
+    # -- deepface.modules & deepface.modules.modeling (for gpu_utils) --------
+    _make_module("deepface.modules")
+    _make_module("deepface.modules.modeling", {"cached_models": {}})
+
+
+_install_deepface_stubs()
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +216,7 @@ def mock_deepface(monkeypatch):
 
 @pytest.fixture()
 def mock_supabase(monkeypatch):
-    """Replace the module-level `supabase` client inside session_manager."""
+    """Replace the Supabase client singleton inside the storage module."""
     mock_client = MagicMock()
 
     # Default .execute() returns an object with .data attribute
@@ -164,7 +246,8 @@ def mock_supabase(monkeypatch):
     mock_storage.from_.return_value.download.return_value = b"\x89PNG"
     mock_client.storage = mock_storage
 
-    monkeypatch.setattr("src.backend.session_manager.supabase", mock_client)
+    monkeypatch.setattr("src.backend.storage._supabase_client", mock_client)
+    monkeypatch.setattr("src.backend.storage._supabase_initialized", True)
     return mock_client
 
 

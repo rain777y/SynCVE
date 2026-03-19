@@ -1,5 +1,5 @@
 {
-  "name": "deepface-react-ui",
+  "name": "syncve-frontend",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -11,12 +11,13 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.9.5",
     "react-scripts": "5.0.1",
+    "recharts": "^3.8.0",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "start": "env-cmd -f ../../.env react-scripts start",
+    "build": "env-cmd -f ../../.env react-scripts build",
+    "test": "env-cmd -f ../../.env react-scripts test",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "eject": "react-scripts eject"
   },
@@ -37,5 +38,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "env-cmd": "^11.0.0"
   }
 }

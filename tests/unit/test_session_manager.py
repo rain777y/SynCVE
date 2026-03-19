@@ -29,7 +29,8 @@ class TestStartSession:
         assert "session_id" in result
 
     def test_start_session_no_supabase(self, monkeypatch):
-        monkeypatch.setattr("src.backend.session_manager.supabase", None)
+        monkeypatch.setattr("src.backend.storage._supabase_client", None)
+        monkeypatch.setattr("src.backend.storage._supabase_initialized", True)
         result = session_manager.start_session(user_id="u1")
         assert "error" in result
         assert "not configured" in result["error"].lower() or "Database" in result["error"]
@@ -64,7 +65,8 @@ class TestStopSession:
         assert "timer-sess" not in session_manager._last_upload_times
 
     def test_stop_session_no_supabase(self, monkeypatch):
-        monkeypatch.setattr("src.backend.session_manager.supabase", None)
+        monkeypatch.setattr("src.backend.storage._supabase_client", None)
+        monkeypatch.setattr("src.backend.storage._supabase_initialized", True)
         result = session_manager.stop_session("some-id")
         assert "error" in result
 
@@ -79,7 +81,8 @@ class TestPauseSession:
         assert "error" in result
 
     def test_pause_session_no_supabase(self, monkeypatch):
-        monkeypatch.setattr("src.backend.session_manager.supabase", None)
+        monkeypatch.setattr("src.backend.storage._supabase_client", None)
+        monkeypatch.setattr("src.backend.storage._supabase_initialized", True)
         result = session_manager.pause_session("some-id")
         assert "error" in result
 
@@ -169,15 +172,18 @@ class TestAggregateEmotionMetrics:
 
     def test_noise_floor_filtering(self):
         """Emotions below the noise floor should be in filtered_out."""
+        # Values > 1.5 are treated as 0-100 scale, so 2 -> 0.02, below noise_floor 0.05
         data = [
-            {"emotions": {"happy": 80, "sad": 1, "angry": 1, "neutral": 1}},
+            {"emotions": {"happy": 80, "sad": 2, "angry": 2, "neutral": 2}},
         ]
         metrics = session_manager.aggregate_emotion_metrics(data, noise_floor=0.05)
         assert "sad" in metrics["filtered_out"] or metrics["averages"].get("sad", 0) < 0.05
 
     def test_noise_floor_keeps_at_least_one(self):
         """Even if all emotions are below the noise floor, the dominant one should survive."""
-        data = [{"emotions": {"happy": 3, "sad": 2, "angry": 1}}]
+        # All scores > 1.5 so normalised to 0-100 scale: 3->0.03, 2->0.02, etc.
+        # With noise_floor=0.99, all are filtered, but dominant (happy) should survive.
+        data = [{"emotions": {"happy": 5, "sad": 3, "angry": 2}}]
         metrics = session_manager.aggregate_emotion_metrics(data, noise_floor=0.99)
         assert len(metrics["averages"]) >= 1
         assert "happy" in metrics["averages"]
@@ -227,7 +233,8 @@ class TestGetRecentSessions:
         assert len(result["sessions"]) == 2
 
     def test_no_supabase_returns_error(self, monkeypatch):
-        monkeypatch.setattr("src.backend.session_manager.supabase", None)
+        monkeypatch.setattr("src.backend.storage._supabase_client", None)
+        monkeypatch.setattr("src.backend.storage._supabase_initialized", True)
         result = session_manager.get_recent_sessions()
         assert "error" in result
 
@@ -249,7 +256,8 @@ class TestGetSessionDetails:
         assert "error" in result
 
     def test_no_supabase_returns_error(self, monkeypatch):
-        monkeypatch.setattr("src.backend.session_manager.supabase", None)
+        monkeypatch.setattr("src.backend.storage._supabase_client", None)
+        monkeypatch.setattr("src.backend.storage._supabase_initialized", True)
         result = session_manager.get_session_details("any")
         assert "error" in result
 
@@ -271,7 +279,8 @@ class TestUploadFrameToStorage:
         assert result is not None
 
     def test_upload_no_supabase(self, monkeypatch):
-        monkeypatch.setattr("src.backend.session_manager.supabase", None)
+        monkeypatch.setattr("src.backend.storage._supabase_client", None)
+        monkeypatch.setattr("src.backend.storage._supabase_initialized", True)
         result = session_manager.upload_frame_to_storage("s-1", "abc")
         assert result is None
 
@@ -282,23 +291,27 @@ class TestUploadFrameToStorage:
 
 class TestSummarizeForArtDirection:
     def test_basic_summary(self):
+        from src.backend.emotion_analytics import summarize_for_art_direction
+
         metrics = {
             "averages": {"happy": 0.7, "sad": 0.2, "angry": 0.1},
             "peak_emotion": "happy",
             "peak_score": 0.9,
         }
-        summary = session_manager._summarize_for_art_direction(metrics)
+        summary = summarize_for_art_direction(metrics)
         assert summary["dominant"] == "happy"
         assert summary["score"] == 0.7
         assert summary["secondary"] == "sad"
         assert summary["peak_emotion"] == "happy"
 
     def test_single_emotion(self):
+        from src.backend.emotion_analytics import summarize_for_art_direction
+
         metrics = {
             "averages": {"neutral": 0.5},
             "peak_emotion": "neutral",
             "peak_score": 0.5,
         }
-        summary = session_manager._summarize_for_art_direction(metrics)
+        summary = summarize_for_art_direction(metrics)
         assert summary["dominant"] == "neutral"
         assert summary["secondary"] is None

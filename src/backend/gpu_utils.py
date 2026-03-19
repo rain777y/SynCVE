@@ -4,7 +4,6 @@ Provides functions to manage GPU memory and prevent out-of-memory errors.
 """
 
 import gc
-import os
 from typing import Optional
 
 try:

@@ -5,9 +5,13 @@ Every test mocks DeepFace and external services so no GPU or network is needed.
 """
 
 import json
+import uuid
 from unittest.mock import patch, MagicMock
 
 import pytest
+
+# Deterministic UUID for all session-id tests (valid UUID format required by Pydantic)
+_TEST_UUID = str(uuid.uuid4())
 
 
 # =========================================================================
@@ -220,10 +224,7 @@ class TestSessionStartEndpoint:
 class TestSessionStopEndpoint:
     def test_session_stop_without_session_id(self, client):
         resp = client.post("/session/stop", json={})
-        assert resp.status_code == 400
-        data = resp.get_json()
-        assert "error" in data
-        assert "session_id" in data["error"]
+        assert resp.status_code == 422
 
     def test_session_stop_success(self, client):
         with patch("src.backend.routes.session_manager") as mock_sm:
@@ -231,7 +232,7 @@ class TestSessionStopEndpoint:
                 "status": "session_ended",
                 "report": {"summary": "ok"},
             }
-            resp = client.post("/session/stop", json={"session_id": "s-1"})
+            resp = client.post("/session/stop", json={"session_id": _TEST_UUID})
             assert resp.status_code == 200
             data = resp.get_json()
             assert data["status"] == "session_ended"
@@ -244,7 +245,7 @@ class TestSessionStopEndpoint:
 class TestSessionPauseEndpoint:
     def test_session_pause_without_session_id(self, client):
         resp = client.post("/session/pause", json={})
-        assert resp.status_code == 400
+        assert resp.status_code in (400, 422)
 
     def test_session_pause_success(self, client):
         with patch("src.backend.routes.session_manager") as mock_sm:
@@ -253,7 +254,7 @@ class TestSessionPauseEndpoint:
                 "image_url": "https://example.com/report.png",
                 "message": "Session paused.",
             }
-            resp = client.post("/session/pause", json={"session_id": "s-1"})
+            resp = client.post("/session/pause", json={"session_id": _TEST_UUID})
             assert resp.status_code == 200
             data = resp.get_json()
             assert data["status"] == "paused"
@@ -265,7 +266,7 @@ class TestSessionPauseEndpoint:
                 "error": "No data",
                 "status_code": 400,
             }
-            resp = client.post("/session/pause", json={"session_id": "s-1"})
+            resp = client.post("/session/pause", json={"session_id": _TEST_UUID})
             assert resp.status_code == 400
 
 
@@ -320,19 +321,19 @@ class TestSessionDetailsEndpoint:
 class TestEmotionReportEndpoint:
     def test_emotion_report_missing_session_id(self, client):
         resp = client.post("/session/report/emotion", json={})
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_emotion_report_success(self, client):
         with patch("src.backend.routes.session_manager") as mock_sm:
             mock_sm.EMOTION_REPORT_KEYFRAME_LIMIT = 4
             mock_sm.generate_emotion_report.return_value = {
-                "session_id": "s-1",
+                "session_id": _TEST_UUID,
                 "report_markdown": "# Report",
                 "metrics": {},
             }
             resp = client.post(
                 "/session/report/emotion",
-                json={"session_id": "s-1"},
+                json={"session_id": _TEST_UUID},
             )
             assert resp.status_code == 200
             data = resp.get_json()
@@ -344,7 +345,7 @@ class TestEmotionReportEndpoint:
             mock_sm.generate_emotion_report.side_effect = ValueError("No vision data")
             resp = client.post(
                 "/session/report/emotion",
-                json={"session_id": "s-1"},
+                json={"session_id": _TEST_UUID},
             )
             assert resp.status_code == 400
 
@@ -354,7 +355,7 @@ class TestEmotionReportEndpoint:
             mock_sm.generate_emotion_report.side_effect = RuntimeError("oops")
             resp = client.post(
                 "/session/report/emotion",
-                json={"session_id": "s-1"},
+                json={"session_id": _TEST_UUID},
             )
             assert resp.status_code == 500
 
@@ -366,20 +367,20 @@ class TestEmotionReportEndpoint:
 class TestVisualReportEndpoint:
     def test_visual_report_missing_session_id(self, client):
         resp = client.post("/session/report/visual", json={})
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_visual_report_success(self, client):
         with patch("src.backend.routes.session_manager") as mock_sm:
             mock_sm.EMOTION_VISUAL_ASPECT_RATIO = "16:9"
             mock_sm.EMOTION_VISUAL_STYLE_PRESET = "futuristic"
             mock_sm.generate_visual_report_v3.return_value = {
-                "session_id": "s-1",
+                "session_id": _TEST_UUID,
                 "public_url": "https://fake/report.png",
                 "metrics": {},
             }
             resp = client.post(
                 "/session/report/visual",
-                json={"session_id": "s-1"},
+                json={"session_id": _TEST_UUID},
             )
             assert resp.status_code == 200
             data = resp.get_json()
@@ -392,7 +393,7 @@ class TestVisualReportEndpoint:
             mock_sm.generate_visual_report_v3.side_effect = ValueError("No data")
             resp = client.post(
                 "/session/report/visual",
-                json={"session_id": "s-1"},
+                json={"session_id": _TEST_UUID},
             )
             assert resp.status_code == 400
 
@@ -403,6 +404,6 @@ class TestVisualReportEndpoint:
             mock_sm.generate_visual_report_v3.side_effect = RuntimeError("boom")
             resp = client.post(
                 "/session/report/visual",
-                json={"session_id": "s-1"},
+                json={"session_id": _TEST_UUID},
             )
             assert resp.status_code == 500

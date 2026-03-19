@@ -1,9 +1,16 @@
 """
 Report generation pipelines for SynCVE backend.
 
-- Text summary report  (generate_report / generate_emotion_report)
-- Visual dashboard image (generate_visual_report_v3)
-- Two-stage Gemini pipelines  (aggregation -> prompt -> render)
+Two modes controlled by settings.yml ``report.mode``:
+  - "fast"  — Structured JSON report from aggregated metrics. Zero LLM calls
+              on pause; one LLM call on stop (text summary). Sub-second response.
+  - "full"  — Fast report + AI-generated dashboard image (2 LLM calls + storage upload).
+
+Public API:
+  generate_fast_report(session_id, ...)   → always available, instant
+  generate_visual_report_v3(session_id, ...)  → only when mode="full"
+  generate_report(session_id)             → text summary on stop (1 LLM call)
+  generate_emotion_report(session_id, ...)  → two-stage keyframe pipeline
 """
 import json
 import time
@@ -32,90 +39,82 @@ logger = Logger()
 
 
 # ============================================================================
-# Text Report (legacy stop-session flow)
+# Fast Report (zero LLM calls — instant structured data)
 # ============================================================================
 
-def generate_report(session_id: str) -> Dict[str, str]:
+def generate_fast_report(
+    session_id: str,
+    raw_vision_data: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     """
-    Standard text report: fetch logs, summarise, and ask Gemini for analysis.
+    Generate a structured report from aggregated emotion metrics.
+    No LLM calls — returns in milliseconds.
 
     Returns:
-        Dict with ``summary`` and ``recommendations`` keys.
+        Dict with session_id, metrics, stats_summary, emotion_timeline,
+        and a human-readable text_summary built from the data.
     """
-    from src.backend.session_manager import fetch_emotion_logs  # avoid circular at module level
+    from src.backend.session_manager import fetch_emotion_logs, persist_aggregate_snapshot
 
-    supabase = get_supabase_client()
-    if not supabase:
-        return {"summary": "Error: DB not connected", "recommendations": ""}
+    if not session_id:
+        raise ValueError("session_id is required")
 
-    cfg = get_config().gemini
-
-    try:
-        logs = fetch_emotion_logs(session_id)
-        if not logs:
-            return {"summary": "No data recorded.", "recommendations": "N/A"}
-
-        total_frames = len(logs)
-        emotion_counts: Dict[str, int] = {}
-        timeline: List[str] = []
-        step = max(1, total_frames // 100)
-
-        for i, log in enumerate(logs):
-            emo = log.get("dominant_emotion", "unknown")
-            emotion_counts[emo] = emotion_counts.get(emo, 0) + 1
-            if i % step == 0:
-                created_at = log.get("created_at", "")
-                timeline.append(f"{created_at}: {emo}")
-
-        stats_str = ", ".join(
-            [f"{k}: {v} ({v / total_frames * 100:.1f}%)" for k, v in emotion_counts.items()]
+    vision_data = raw_vision_data or fetch_emotion_logs(session_id)
+    if not vision_data:
+        raise ValueError(
+            f"No vision data for session {session_id}; "
+            "call /analyze with session_id before generating a report."
         )
-        timeline_str = "\n".join(timeline)
 
-        prompt = f"""
-        You are an AI Emotional Assistant analyzing a user's emotional state from a video session.
+    metrics = aggregate_emotion_metrics(vision_data)
+    stats = summarize_for_art_direction(metrics)
 
-        **Session Statistics:**
-        Total Duration: (Derived from logs)
-        Emotion Distribution: {stats_str}
+    # Build a readable summary without any LLM call
+    dominant = metrics.get("dominant", "unknown")
+    dom_score = metrics.get("dominant_score", 0)
+    peak = metrics.get("peak_emotion", dominant)
+    peak_score = metrics.get("peak_score", 0)
+    samples = metrics.get("samples", 0)
+    averages = metrics.get("averages", {})
 
-        **Timeline Samples:**
-        {timeline_str}
+    # Emotion timeline from raw data (sampled)
+    timeline = []
+    step = max(1, len(vision_data) // 20)
+    for i, entry in enumerate(vision_data):
+        if i % step == 0:
+            emo = entry.get("dominant_emotion") or ""
+            if not emo:
+                scores = entry.get("emotions") or entry.get("emotion") or {}
+                if scores:
+                    emo = max(scores, key=scores.get)
+            ts = entry.get("captured_at") or entry.get("created_at") or ""
+            timeline.append({"t": ts, "emotion": emo})
 
-        **Task:**
-        1. Provide a brief 'Summary' of the user's emotional journey. Was it stable? Did it fluctuate?
-        2. Provide 3 specific, actionable 'Recommendations' to help the user improve their mood or maintain positivity.
+    # Top emotions ranked
+    ranked = sorted(averages.items(), key=lambda kv: kv[1], reverse=True)
 
-        **Output Format (JSON):**
-        {{
-            "summary": "...",
-            "recommendations": "..."
-        }}
-        """
+    text_summary = (
+        f"Over {samples} frames, the dominant emotion was {dominant} "
+        f"({dom_score:.0%}). Peak expression: {peak} ({peak_score:.0%}). "
+        f"Distribution: {', '.join(f'{e} {s:.0%}' for e, s in ranked[:4])}."
+    )
 
-        if not cfg.api_key:
-            return {"summary": "Gemini API Key missing.", "recommendations": "Cannot generate report."}
+    persist_aggregate_snapshot(session_id, metrics)
 
-        text_response = generate_text(prompt, model=cfg.text_model)
-        clean_text = text_response.replace("```json", "").replace("```", "").strip()
-
-        try:
-            result = json.loads(clean_text)
-        except Exception:
-            result = {
-                "summary": text_response[:500],
-                "recommendations": "Raw output: " + text_response[:500],
-            }
-
-        return result
-
-    except Exception as e:
-        logger.error(f"Error calling Gemini: {e}")
-        return {"summary": "Error generating report.", "recommendations": str(e)}
+    return {
+        "session_id": session_id,
+        "report_mode": "fast",
+        "metrics": metrics,
+        "stats_summary": stats,
+        "text_summary": text_summary,
+        "emotion_ranking": [{"emotion": e, "score": round(s, 4)} for e, s in ranked],
+        "emotion_timeline": timeline,
+        "samples": samples,
+    }
 
 
 # ============================================================================
-# Visual Dashboard Image (v3.0 Data-to-Visual pipeline)
+# Visual Dashboard Image (optional, mode="full" only)
 # ============================================================================
 
 def generate_visual_report_v3(
@@ -127,10 +126,12 @@ def generate_visual_report_v3(
 ) -> Dict[str, Any]:
     """
     Data-to-Visual Image Pipeline (v3.0):
-      1) Aggregate emotion stats
+      1) Generate fast report (instant)
       2) Flash-Lite (Art Director) writes an image prompt
       3) Image model renders the final image
       4) Image is uploaded to storage; URL is returned
+
+    This is expensive (2 LLM calls + upload). Only used when report.mode="full".
     """
     from src.backend.session_manager import fetch_emotion_logs, persist_aggregate_snapshot
 
@@ -155,12 +156,6 @@ def generate_visual_report_v3(
         )
 
     metrics = aggregate_emotion_metrics(vision_data)
-    logger.info(
-        f"Aggregated {metrics.get('samples')} samples for session {session_id}. "
-        f"Dominant={metrics.get('dominant')} ({metrics.get('dominant_score', 0.0):.2f}) "
-        f"Peak={metrics.get('peak_emotion')} ({metrics.get('peak_score', 0.0):.2f})"
-    )
-
     stats = summarize_for_art_direction(metrics)
     art_prompt = _run_flash_art_director(stats)
 
@@ -177,6 +172,7 @@ def generate_visual_report_v3(
 
     return {
         "session_id": session_id,
+        "report_mode": "full",
         "metrics": metrics,
         "stats_summary": stats,
         "image_prompt": art_prompt,
@@ -186,7 +182,67 @@ def generate_visual_report_v3(
 
 
 # ============================================================================
-# Two-stage Emotion Reporting (Aggregator -> Flash -> Pro Vision)
+# Text Report (stop-session flow — 1 LLM call)
+# ============================================================================
+
+def generate_report(session_id: str) -> Dict[str, str]:
+    """
+    Text summary report on session stop. Single LLM call.
+    """
+    from src.backend.session_manager import fetch_emotion_logs
+
+    supabase = get_supabase_client()
+    if not supabase:
+        return {"summary": "Error: DB not connected", "recommendations": ""}
+
+    cfg = get_config().gemini
+
+    try:
+        logs = fetch_emotion_logs(session_id)
+        if not logs:
+            return {"summary": "No data recorded.", "recommendations": "N/A"}
+
+        total_frames = len(logs)
+        emotion_counts: Dict[str, int] = {}
+        timeline: List[str] = []
+        step = max(1, total_frames // 50)
+
+        for i, log in enumerate(logs):
+            emo = log.get("dominant_emotion", "unknown")
+            emotion_counts[emo] = emotion_counts.get(emo, 0) + 1
+            if i % step == 0:
+                created_at = log.get("created_at", "")
+                timeline.append(f"{created_at}: {emo}")
+
+        stats_str = ", ".join(
+            f"{k}: {v} ({v / total_frames * 100:.1f}%)" for k, v in emotion_counts.items()
+        )
+        timeline_str = "\n".join(timeline[:30])  # cap timeline length
+
+        prompt = f"""Analyze this emotion session data and return JSON only.
+
+Session: {total_frames} frames analyzed.
+Distribution: {stats_str}
+Timeline (sampled): {timeline_str}
+
+Return exactly this JSON (no markdown fences):
+{{"summary": "<2-3 sentence emotional journey summary>", "recommendations": "<3 actionable bullet points>"}}"""
+
+        text_response = generate_text(prompt, model=cfg.text_model)
+        clean_text = text_response.replace("```json", "").replace("```", "").strip()
+
+        try:
+            return json.loads(clean_text)
+        except Exception:
+            return {"summary": text_response[:500], "recommendations": ""}
+
+    except Exception as e:
+        logger.error(f"Error generating report: {e}")
+        return {"summary": "Error generating report.", "recommendations": str(e)}
+
+
+# ============================================================================
+# Two-stage Emotion Report (Aggregator -> Flash -> Pro Vision)
 # ============================================================================
 
 def generate_emotion_report(
@@ -195,10 +251,7 @@ def generate_emotion_report(
     max_keyframes: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
-    Full two-stage pipeline:
-      1) Aggregate raw emotion scores
-      2) Flash-lite text model crafts a context prompt
-      3) Pull keyframes from storage + run the pro vision model for a Markdown report
+    Full two-stage pipeline: aggregate → flash prompt → keyframes → vision model.
     """
     from src.backend.session_manager import fetch_emotion_logs, persist_aggregate_snapshot
 
@@ -231,73 +284,43 @@ def generate_emotion_report(
 
 
 # ============================================================================
-# Deprecated legacy visual report (kept for backward compat)
-# ============================================================================
-
-def generate_visual_report_auto(session_id: str) -> str:
-    """
-    DEPRECATED: legacy visual report (text-to-image only).
-    Use ``generate_visual_report_v3`` instead.
-    """
-    logger.info(f"Generating visual report for session {session_id}...")
-
-    try:
-        text_report = generate_report(session_id)
-        summary = text_report.get("summary", "User session analysis.")
-
-        prompt_generation_prompt = f"""
-        Based on this emotional summary: "{summary}", create a detailed prompt for an AI image generator to create a "Futuristic Emotion Analytics Dashboard".
-
-        The image should feature:
-        1.  Sleek data visualizations (waveforms, circular heatmaps, or connection graphs).
-        2.  A color palette reflecting the dominant emotion (e.g., Golden/Yellow for Happy, Blue for Sad, Red for Angry).
-        3.  High-tech, sci-fi UI elements (HUD style).
-        4.  No text or minimal abstract text.
-
-        The goal is to visualize the "Emotional Journey" as a piece of sophisticated technology monitoring.
-        Output ONLY the prompt string.
-        """
-
-        visual_prompt = generate_text(prompt_generation_prompt)
-        visual_prompt = visual_prompt.strip()
-    except Exception as e:
-        logger.error(f"Error generating prompt: {e}")
-        visual_prompt = "A visual report of the user's emotional session."
-
-    try:
-        image_bytes = generate_image(visual_prompt, aspect_ratio="16:9")
-
-        timestamp = int(time.time() * 1000)
-        report_path = f"{session_id}/reports/report_{timestamp}.png"
-        upload_to_supabase(report_path, image_bytes, content_type="image/png")
-        return get_public_url(report_path)
-    except Exception as e:
-        logger.error(f"Error generating visual report: {e}")
-        return f"Error: {str(e)}"
-
-
-# ============================================================================
 # Internal pipeline helpers
 # ============================================================================
 
 def _run_flash_art_director(stats: Dict[str, Any]) -> str:
     """Turn numeric stats into an art-direction prompt for the image model."""
+    dominant = stats.get("dominant", "neutral")
+    score = stats.get("score", 0)
+    secondary = stats.get("secondary")
+    sec_score = stats.get("secondary_score", 0)
+    peak = stats.get("peak_emotion", dominant)
+
+    data_block = (
+        f"Dominant: {dominant} ({score:.0%}) | "
+        f"Secondary: {secondary or 'none'} ({sec_score:.0%}) | "
+        f"Peak: {peak}"
+    )
+
     prompt = f"""
-Role: You are an expert AI Art Director.
-Input: User emotion telemetry (JSON): {json.dumps(stats)}
-Task: Convert this data into a precise "Image Generation Prompt" for a high-end generative AI.
+Role: Expert AI Art Director for a real-time emotion analytics dashboard.
+Data: {data_block}
 
-Design Guidelines:
-1. Mood & Color:
-   - If Sad/Fear: Use Cool Blues, Deep Indigos, with Amber/Red warning accents. Dark, moody atmosphere.
-   - If Happy/Surprised: Use Bright Cyans, Oranges, high brightness.
-2. Layout: A futuristic HUD (Heads-Up Display) or Glassmorphism dashboard.
-3. Data Visualization:
-   - Describe a central gauge showing the Dominant Emotion with its percentage.
-   - Describe a secondary indicator for the Secondary Emotion with its percentage.
-4. Text Elements: Include a short, punchy headline text to be rendered (e.g., "STATUS: ANXIOUS DISTRESS").
+Task: Write a single, precise image-generation prompt (no commentary).
 
-Output Format:
+Mandatory constraints:
+- Dark background (#0d0d0d to #1a1a2e) so the image renders cleanly on a dark UI modal.
+- Central radial gauge or arc meter displaying "{dominant.upper()}" with its percentage.
+- A smaller secondary indicator for "{secondary or 'N/A'}" if present.
+- Glassmorphism / frosted-glass panels with subtle neon glow edges.
+- Emotion-driven accent palette:
+    Sad/Fear  -> deep indigo + amber warning accents
+    Happy/Surprise -> cyan + warm orange highlights
+    Angry/Disgust -> crimson + dark steel
+    Neutral -> cool silver-blue + soft teal
+- Particle / waveform background element reflecting emotional intensity ({score:.0%}).
+- A short HUD headline text (e.g., "STATUS: {dominant.upper()}").
+- 16:9 landscape, no watermarks, no human faces, no real photographs.
+
 Return ONLY the prompt string.
 """.strip()
 
@@ -305,7 +328,7 @@ Return ONLY the prompt string.
 
 
 def _run_flash_prompt(metrics: Dict[str, Any]) -> str:
-    """Use the fast/cheap text model to convert metrics into a contextual prompt for the vision model."""
+    """Convert metrics into a contextual prompt for the vision model."""
     dominant = metrics.get("dominant")
     dominant_score = metrics.get("dominant_score", 0.0)
     peak_emotion = metrics.get("peak_emotion")
@@ -313,7 +336,7 @@ def _run_flash_prompt(metrics: Dict[str, Any]) -> str:
     averages = metrics.get("averages", {})
 
     top_pairs = sorted(averages.items(), key=lambda kv: kv[1], reverse=True)
-    top_summary = ", ".join([f"{emo}: {score:.2f}" for emo, score in top_pairs[:4]])
+    top_summary = ", ".join(f"{emo}: {score:.2f}" for emo, score in top_pairs[:4])
 
     prompt = f"""
 You are crafting a focused instruction for a vision model that WILL receive images separately.
@@ -365,7 +388,7 @@ def _fetch_session_keyframes(
 
 
 def _run_pro_vision_report(context_prompt: str, keyframes: List[Dict[str, Any]]) -> str:
-    """Combine context prompt + keyframe images via the vision model for the final Markdown report."""
+    """Combine context prompt + keyframe images via the vision model for a Markdown report."""
     if not keyframes:
         raise ValueError("No keyframes available for vision report")
 

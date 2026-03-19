@@ -9,7 +9,7 @@ import base64
 from pathlib import Path
 
 BACKEND_URL = os.getenv("SYNCVE_TEST_BACKEND_URL", "http://localhost:5005")
-TEST_ASSETS_DIR = Path(__file__).parent.parent / "assets"
+ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
 
 
 @pytest.fixture(scope="session")
@@ -30,9 +30,9 @@ def backend_url():
 def test_face_image_base64():
     """Load a real test face image as base64."""
     image_paths = [
-        TEST_ASSETS_DIR / "generated" / "neutral_face.jpg",
-        TEST_ASSETS_DIR / "generated" / "happy_face.jpg",
-        TEST_ASSETS_DIR / "static" / "test_face_basic.jpg",
+        ARTIFACTS_DIR / "images" / "neutral_face.jpg",
+        ARTIFACTS_DIR / "images" / "happy_face.jpg",
+        ARTIFACTS_DIR / "images" / "test_face_basic.jpg",
     ]
     for path in image_paths:
         if path.exists():

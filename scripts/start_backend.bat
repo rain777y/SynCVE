@@ -10,7 +10,7 @@ set "INFO=%ESC%[96m[INFO]%ESC%[0m"
 set "ROOT=%~dp0..\"
 set "ENV_NAME=SynCVE"
 set "BACKEND_DIR=%ROOT%src\backend"
-set "BACKEND_ENV_FILE=%BACKEND_DIR%\backend.env"
+set "BACKEND_ENV_FILE=%ROOT%.env"
 set "BACKEND_MODULE=src.backend.app"
 set "BACKEND_PORT=5005"
 
@@ -88,9 +88,9 @@ exit /b 0
 
 :checkEnvFile
 if not exist "%BACKEND_ENV_FILE%" (
-    echo %WARN% backend.env not found at "%BACKEND_ENV_FILE%".
-    if exist "%BACKEND_DIR%\backend.env.example" (
-        echo %INFO% Copy template: copy src\backend\backend.env.example src\backend\backend.env
+    echo %WARN% .env not found at "%BACKEND_ENV_FILE%".
+    if exist "%ROOT%.env.example" (
+        echo %INFO% Copy template: copy .env.example .env
     )
     echo %WARN% Backend will start with system environment variables only.
 ) else (

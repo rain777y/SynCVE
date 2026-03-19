@@ -4,8 +4,8 @@
  * Display real-time confidence progress bars for 7 emotions
  * Extracted from PemoFacial library and integrated
  *
- * @version 1.0.0
- * @date 2025-10-25
+ * @version 1.1.0
+ * @date 2026-03-20
  */
 
 import React from 'react';
