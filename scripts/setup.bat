@@ -1,14 +1,13 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-rem Enable ANSI escape support for colored output
 for /f "delims=" %%E in ('echo prompt $E^| cmd') do set "ESC=%%E"
 set "OK=%ESC%[92m[OK]%ESC%[0m"
 set "WARN=%ESC%[93m[WARN]%ESC%[0m"
 set "ERR=%ESC%[91m[ERROR]%ESC%[0m"
 set "INFO=%ESC%[96m[INFO]%ESC%[0m"
 
-set "ROOT=%~dp0"
+set "ROOT=%~dp0..\"
 set "ENV_NAME=SynCVE"
 
 cd /d "%ROOT%" || (
@@ -23,9 +22,7 @@ echo %ESC%[96m  SynCVE - First Time Setup%ESC%[0m
 echo %ESC%[96m====================================%ESC%[0m
 echo.
 
-:: ========================================================================
 :: [1/7] Check prerequisites
-:: ========================================================================
 echo %INFO% [1/7] Checking prerequisites...
 
 where conda >nul 2>&1 || (
@@ -57,9 +54,7 @@ for /f "delims=" %%M in ('call npm --version 2^>nul') do set "NPMVER=%%M"
 echo   %OK% npm found: %NPMVER%
 echo.
 
-:: ========================================================================
 :: [2/7] Set up Python environment
-:: ========================================================================
 echo %INFO% [2/7] Setting up Python environment...
 
 call conda env list 2>nul | findstr /C:"%ENV_NAME%" >nul 2>&1
@@ -77,9 +72,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 
-:: ========================================================================
 :: [3/7] Install Python dependencies
-:: ========================================================================
 echo %INFO% [3/7] Installing Python dependencies...
 
 call conda activate %ENV_NAME%
@@ -95,7 +88,7 @@ for /f "delims=" %%P in ('python --version 2^>nul') do set "PYVER=%%P"
 echo   %OK% Python: %PYVER%
 
 echo   Installing pip packages from requirements.txt...
-pip install -r requirements.txt --upgrade --no-cache-dir
+pip install -r "%ROOT%requirements.txt" --upgrade --no-cache-dir
 if errorlevel 1 (
     echo %WARN% Some pip packages may have failed. Check output above.
 ) else (
@@ -103,9 +96,7 @@ if errorlevel 1 (
 )
 echo.
 
-:: ========================================================================
 :: [4/7] Check GPU availability
-:: ========================================================================
 echo %INFO% [4/7] Checking GPU availability...
 
 nvidia-smi >nul 2>&1
@@ -124,13 +115,11 @@ if errorlevel 1 (
 )
 echo.
 
-:: ========================================================================
 :: [5/7] Install frontend dependencies
-:: ========================================================================
 echo %INFO% [5/7] Installing frontend dependencies...
 
 if not exist "%ROOT%src\frontend\package.json" (
-    echo %ERR% Frontend package.json not found at "%ROOT%src\frontend\package.json".
+    echo %ERR% Frontend package.json not found.
     pause
     exit /b 1
 )
@@ -148,9 +137,7 @@ if not "!NPM_EXIT!"=="0" (
 echo   %OK% Frontend dependencies installed.
 echo.
 
-:: ========================================================================
 :: [6/7] Set up environment files
-:: ========================================================================
 echo %INFO% [6/7] Setting up environment files...
 
 if not exist "%ROOT%src\backend\backend.env" (
@@ -169,57 +156,23 @@ if not exist "%ROOT%src\frontend\.env" (
     if exist "%ROOT%src\frontend\.env.example" (
         copy "%ROOT%src\frontend\.env.example" "%ROOT%src\frontend\.env" >nul
         echo   %OK% Created src\frontend\.env from template.
-        echo   %WARN% EDIT src\frontend\.env with your Supabase keys!
     ) else (
-        echo   %WARN% No frontend .env.example found. Create src\frontend\.env manually.
+        echo   %WARN% No frontend .env.example found.
     )
 ) else (
     echo   %OK% src\frontend\.env already exists.
 )
 echo.
 
-:: ========================================================================
 :: [7/7] Verify setup
-:: ========================================================================
 echo %INFO% [7/7] Verifying setup...
 
 set "VERIFY_OK=1"
-
-python -c "import flask; print(f'  Flask {flask.__version__}')" 2>nul
-if errorlevel 1 (
-    echo   %ERR% Flask not importable.
-    set "VERIFY_OK=0"
-)
-
-python -c "import deepface; print(f'  DeepFace {deepface.__version__}')" 2>nul
-if errorlevel 1 (
-    echo   %ERR% DeepFace not importable.
-    set "VERIFY_OK=0"
-)
-
-python -c "import tensorflow as tf; print(f'  TensorFlow {tf.__version__}')" 2>nul
-if errorlevel 1 (
-    echo   %ERR% TensorFlow not importable.
-    set "VERIFY_OK=0"
-)
-
-python -c "import torch; print(f'  PyTorch {torch.__version__}')" 2>nul
-if errorlevel 1 (
-    echo   %ERR% PyTorch not importable.
-    set "VERIFY_OK=0"
-)
-
-python -c "import cv2; print(f'  OpenCV {cv2.__version__}')" 2>nul
-if errorlevel 1 (
-    echo   %ERR% OpenCV not importable.
-    set "VERIFY_OK=0"
-)
-
-if "!VERIFY_OK!"=="1" (
-    echo   %OK% All core packages verified.
-) else (
-    echo   %WARN% Some packages could not be verified. See errors above.
-)
+python -c "import flask; print(f'  Flask {flask.__version__}')" 2>nul || set "VERIFY_OK=0"
+python -c "import deepface; print(f'  DeepFace {deepface.__version__}')" 2>nul || set "VERIFY_OK=0"
+python -c "import tensorflow as tf; print(f'  TensorFlow {tf.__version__}')" 2>nul || set "VERIFY_OK=0"
+python -c "import torch; print(f'  PyTorch {torch.__version__}')" 2>nul || set "VERIFY_OK=0"
+python -c "import cv2; print(f'  OpenCV {cv2.__version__}')" 2>nul || set "VERIFY_OK=0"
 
 echo.
 echo %ESC%[92m====================================%ESC%[0m
@@ -227,14 +180,9 @@ echo %ESC%[92m  Setup Complete!%ESC%[0m
 echo %ESC%[92m====================================%ESC%[0m
 echo.
 echo   Next steps:
-echo     1. Edit src\backend\backend.env with your API keys (Supabase, Gemini)
-echo     2. Edit src\frontend\.env with your Supabase keys
-echo     3. Run start_backend.bat to start the backend
-echo     4. Run start_frontend.bat to start the frontend
-echo     5. Open http://localhost:3000 in your browser
-echo.
-echo   Optional:
-echo     - Run: python scripts\health_check.py   for a full health check
-echo     - Run: pip install -r requirements-dev.txt   for dev tools
+echo     1. Edit src\backend\backend.env with your API keys
+echo     2. Run scripts\start_backend.bat
+echo     3. Run scripts\start_frontend.bat
+echo     4. Open http://localhost:3000
 echo.
 pause

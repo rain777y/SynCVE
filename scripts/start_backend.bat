@@ -1,14 +1,13 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-rem Enable ANSI escape support for colored output
 for /f "delims=" %%E in ('echo prompt $E^| cmd') do set "ESC=%%E"
 set "OK=%ESC%[92m[OK]%ESC%[0m"
 set "WARN=%ESC%[93m[WARN]%ESC%[0m"
 set "ERR=%ESC%[91m[ERROR]%ESC%[0m"
 set "INFO=%ESC%[96m[INFO]%ESC%[0m"
 
-set "ROOT=%~dp0"
+set "ROOT=%~dp0..\"
 set "ENV_NAME=SynCVE"
 set "BACKEND_DIR=%ROOT%src\backend"
 set "BACKEND_ENV_FILE=%BACKEND_DIR%\backend.env"
@@ -26,15 +25,9 @@ echo %INFO% SynCVE Backend Launcher
 echo %INFO% Project root: %ROOT%
 echo.
 
-:: ========================================================================
-:: Pre-flight checks
-:: ========================================================================
-
 call :checkConda || goto :fail
 call :activateEnv || goto :fail
 
-:: [CRITICAL FIX] Force Pure-Python Protobuf Implementation
-:: Fixes TensorFlow (requires old protobuf) vs Gemini (requires new) conflict
 set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 echo %INFO% Applied Protobuf compatibility patch.
 
@@ -43,9 +36,6 @@ call :checkEnvFile
 call :checkPortAvailable
 call :checkGPU
 
-:: ========================================================================
-:: Launch backend
-:: ========================================================================
 echo.
 echo %INFO% Starting Backend module: %BACKEND_MODULE% on port %BACKEND_PORT%
 echo %INFO% Press Ctrl+C to stop the server.
@@ -68,10 +58,6 @@ echo %ERR% Backend startup failed.
 pause
 exit /b 1
 
-REM ============================================================================
-REM SUBROUTINES
-REM ============================================================================
-
 :checkConda
 where conda >nul 2>&1 || (
     echo %ERR% Conda not found. Install Anaconda/Miniconda and ensure it is on PATH.
@@ -86,16 +72,13 @@ echo %OK% Conda found at "!CONDA_PATH!"
 exit /b 0
 
 :activateEnv
-rem Try name-based activation first (works on any machine)
 call conda activate %ENV_NAME% >nul 2>&1
 if not errorlevel 1 (
     echo %OK% Conda environment "%ENV_NAME%" activated.
     exit /b 0
 )
-rem Environment may not exist
 echo %ERR% Conda environment "%ENV_NAME%" not found.
-echo %INFO% Run setup.bat first, or create it manually:
-echo        conda create -n %ENV_NAME% python=3.10 -y
+echo %INFO% Run scripts\setup.bat first, or: conda create -n %ENV_NAME% python=3.10 -y
 exit /b 1
 
 :checkDependencies
@@ -111,10 +94,7 @@ exit /b 0
 if not exist "%BACKEND_ENV_FILE%" (
     echo %WARN% backend.env not found at "%BACKEND_ENV_FILE%".
     if exist "%BACKEND_DIR%\backend.env.example" (
-        echo %INFO% A template exists. Run setup.bat or copy manually:
-        echo        copy src\backend\backend.env.example src\backend\backend.env
-    ) else (
-        echo %INFO% Create src\backend\backend.env with your API keys.
+        echo %INFO% Copy template: copy src\backend\backend.env.example src\backend\backend.env
     )
     echo %WARN% Backend will start with system environment variables only.
 ) else (
@@ -126,8 +106,7 @@ exit /b 0
 netstat -ano 2>nul | findstr /R ":%BACKEND_PORT% " | findstr "LISTENING" >nul 2>&1
 if not errorlevel 1 (
     echo %WARN% Port %BACKEND_PORT% is already in use!
-    echo %INFO% Another process may be running on this port.
-    echo %INFO% Stop it first, or change BACKEND_PORT in backend.env.
+    echo %INFO% Stop it first with: scripts\stop_service.bat
 ) else (
     echo %OK% Port %BACKEND_PORT% is available.
 )
@@ -138,18 +117,12 @@ set "GPU_STATUS=None"
 nvidia-smi >nul 2>&1
 if not errorlevel 1 (
     set "GPU_STATUS=CUDA"
-    echo %OK% GPU detected via nvidia-smi ^(CUDA^).
+    echo %OK% GPU detected via nvidia-smi.
     for /f "tokens=*" %%G in ('nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2^>nul') do (
         echo       %%G
     )
 )
 if "!GPU_STATUS!"=="None" (
-    python -c "import torch; print('CUDA_AVAILABLE' if torch.cuda.is_available() else 'NO_CUDA')" 2>nul | findstr /i "CUDA_AVAILABLE" >nul 2>&1
-    if not errorlevel 1 set "GPU_STATUS=PythonCUDA"
-)
-if "!GPU_STATUS!"=="None" (
-    echo %WARN% No GPU detected; CPU mode will be used ^(slower^).
-) else (
-    echo %OK% GPU acceleration available: !GPU_STATUS!
+    echo %WARN% No GPU detected; CPU mode will be used.
 )
 exit /b 0

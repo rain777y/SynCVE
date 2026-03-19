@@ -15,7 +15,7 @@ React-based UI for the SynCVE emotion recognition system. The app uses Supabase 
    - `REACT_APP_SERVICE_ENDPOINT` (if not localhost)
    - Optional detection presets (`REACT_APP_DETECTOR_BACKEND`, `REACT_APP_ANTI_SPOOFING`, `REACT_APP_DETECTION_INTERVAL`)
 3) Install deps: `npm install`
-4) Start dev server: `npm start` (or run `start_frontend.bat` from repo root)
+4) Start dev server: `npm start` (or run `scripts\start_frontend.bat` from repo root)
 
 ## Scripts
 - `npm start` - dev server at http://localhost:3000

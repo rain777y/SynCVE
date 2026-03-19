@@ -289,7 +289,7 @@ def print_summary():
     elif fail_count <= 3:
         print("  Status: MOSTLY OK (fix failures above)")
     else:
-        print("  Status: SETUP INCOMPLETE (run setup.bat)")
+        print("  Status: SETUP INCOMPLETE (run scripts/setup.bat)")
 
     print("=" * 60)
     return fail_count

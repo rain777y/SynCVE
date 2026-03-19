@@ -21,7 +21,7 @@ def backend_url():
         assert resp.status_code == 200, f"Backend not healthy: {resp.status_code}"
     except requests.ConnectionError:
         pytest.skip(
-            f"Backend not running at {url}. Start it first with start_backend.bat"
+            f"Backend not running at {url}. Start it first with scripts\\start_backend.bat"
         )
     return url
 

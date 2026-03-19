@@ -129,14 +129,16 @@ nvidia-smi
 
 ## Runtime Operations
 
-- **Start all services**: `start_synCVE.bat` activates Conda, validates Python/Node/NPM, checks GPU, and opens two terminals for backend (`src/backend/app.py`) and frontend (`npm start`).
-- **Start frontend only**: `start_frontend.bat` (if backend was already running).
-- **Stop services gracefully**: `dev/tests/stop_synCVE_service.bat` performs port checks, sends graceful `taskkill`, enforces forced shutdown if necessary, and confirms port 5005 is released before exiting. It reports status both before and after shutdown with user-friendly messages.
-- **Check dependencies**: `dev/tests/fix_dependencies.bat` automates `pip`/`conda` corrections if packages are missing.
+- **First time setup**: `scripts\setup.bat` — one-click install (Conda env, pip, npm, GPU check, env files).
+- **Start backend**: `scripts\scripts\start_backend.bat` — activates Conda, checks GPU/port, starts Flask on port 5005.
+- **Start frontend**: `scripts\scripts\start_frontend.bat` — checks Node.js, auto-installs deps, starts React on port 3000.
+- **Stop services**: `scripts\stop_service.bat` — graceful shutdown with port cleanup.
+- **Run tests**: `scripts\run_tests.bat` — unit + integration + regression test suite.
+- **Health check**: `python scripts\health_check.py` — full dependency and environment verification.
 
 ### Port Coordination
 
-- Backend listens on port `5005` (configured via `BACKEND_PORT`). `stop_synCVE_service.bat` inspects `netstat` to confirm listeners and releases the port after termination.
+- Backend listens on port `5005` (configured via `BACKEND_PORT`). `scripts\stop_service.bat` inspects `netstat` to confirm listeners and releases the port after termination.
 - Use `netstat -ano | findstr ":5005"` to inspect port ownership manually.
 
 ## Configuration Reference
@@ -165,13 +167,12 @@ Front-end environment sits in `src/frontend/.env`. Keep `REACT_APP_SERVICE_ENDPO
 
 ## Development Tooling & Scripts
 
-- Scripts live under `dev/tests/` (batch/PowerShell/bash mix). Highlights:
-  - `fix_broken_packages.*`: triage pip/conda dependency issues.
-  - `diagnose_*`: environment/path diagnostics.
-  - `test_*`: targeted load/testing scripts (e.g., `test-loading-optimization.md` details actual stress scenarios).
-  - `stop_synCVE_service.bat`: new graceful stop helper that reports before/after status, handles normal and forced shutdown, and ensures port release.
-
-- Logging: `dev/log/` contains records from previous runs. Review before modifying GPU configs.
+- All scripts live under `scripts/`:
+  - `setup.bat`: one-click first-time setup.
+  - `start_backend.bat` / `start_frontend.bat`: service launchers.
+  - `stop_service.bat`: graceful shutdown with port cleanup.
+  - `run_tests.bat`: unit + integration + regression tests.
+  - `health_check.py`: full environment verification.
 
 ## Diagnostics & Troubleshooting
 
@@ -179,7 +180,7 @@ Front-end environment sits in `src/frontend/.env`. Keep `REACT_APP_SERVICE_ENDPO
 | --- | --- | --- |
 | Backend fails to start | `python src/backend/app.py` manually | Check `requirements.txt`, reinstall via `pip install -r requirements.txt`, confirm `conda activate SynCVE`. |
 | GPU not detected | `nvidia-smi`, `python -c "import torch;print(torch.cuda.is_available())"` | Install/update CUDA/cuDNN, ensure driver >=522.06, set `CUDA_VISIBLE_DEVICES`. |
-| Port 5005 busy | `netstat -ano | findstr ":5005"` | Run `dev/tests/stop_synCVE_service.bat` or `taskkill /PID <pid> /F`. |
+| Port 5005 busy | `netstat -ano | findstr ":5005"` | Run `dev/tests/scripts\stop_service.bat` or `taskkill /PID <pid> /F`. |
 | Frontend cannot reach backend | Confirm `REACT_APP_SERVICE_ENDPOINT` matches backend scheme/port. Use browser DevTools network panel. |
 | TensorFlow OOM | Reduce `TF_GPU_MEMORY_FRACTION` (e.g., 0.7). Restart app to reset GPU memory. |
 | Anti-spoofing errors | Ensure FasNet dependencies in conda env; disable temporarily with `ANTI_SPOOFING=0`. |
@@ -224,4 +225,4 @@ This educational project uses open-source frameworks: DeepFace, TensorFlow, PyTo
 
 ---
 
-Need to stop the service manually? Run `dev/tests/stop_synCVE_service.bat` afterward to reclaim port 5005 and check status.
+Need to stop the service manually? Run `dev/tests/scripts\stop_service.bat` afterward to reclaim port 5005 and check status.
