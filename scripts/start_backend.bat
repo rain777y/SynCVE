@@ -27,10 +27,6 @@ echo.
 
 call :checkConda || goto :fail
 call :activateEnv || goto :fail
-
-set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-echo %INFO% Applied Protobuf compatibility patch.
-
 call :checkDependencies || goto :fail
 call :checkEnvFile
 call :checkPortAvailable

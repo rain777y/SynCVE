@@ -144,13 +144,12 @@ if not exist "%ROOT%src\backend\backend.env" (
     if exist "%ROOT%src\backend\backend.env.example" (
         copy "%ROOT%src\backend\backend.env.example" "%ROOT%src\backend\backend.env" >nul
         echo   %OK% Created src\backend\backend.env from template.
-        echo   %WARN% EDIT src\backend\backend.env with your Supabase and Gemini API keys!
-    ) else (
-        echo   %WARN% No backend.env.example found. Create src\backend\backend.env manually.
+        echo   %WARN% EDIT src\backend\backend.env with your API keys (Supabase, Gemini)!
     )
 ) else (
     echo   %OK% src\backend\backend.env already exists.
 )
+echo   %OK% Application settings in config\settings.yml (no edits needed).
 
 if not exist "%ROOT%src\frontend\.env" (
     if exist "%ROOT%src\frontend\.env.example" (

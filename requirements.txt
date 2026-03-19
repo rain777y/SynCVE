@@ -1,58 +1,36 @@
 # ============================================================================
 # SynCVE Python Dependencies
-# Install with: pip install -r requirements.txt --upgrade --no-cache-dir
-# Last updated: 2026-03-20
+# Install: pip install -r requirements.txt
 # ============================================================================
 
-# --- Core Scientific Stack ------------------------------------------------
-# NumPy <1.24 pinned to avoid NumPy 2.x ABI breaks with TF 2.10
-numpy>=1.22.0,<1.24
+# --- Core ---
+numpy>=1.22.0,<1.24          # pinned: TF 2.10 breaks with NumPy 2.x ABI
 pandas>=2.0,<3.0
 requests>=2.28,<3.0
-python-dotenv>=1.0,<2.0
+python-dotenv>=1.0,<2.0      # loads secrets from backend.env
 pydantic>=2.0,<3.0
-importlib-metadata>=6.9; python_version<'3.10'
+PyYAML>=6.0,<7.0             # loads config/settings.yml
 
-# --- Deep Learning --------------------------------------------------------
-# TF and Keras pinned for CUDA 11.8 compatibility; do NOT upgrade without
-# verifying GPU driver + cuDNN versions.
-# TF 2.10.1 is the last version fully supporting CUDA 11.8 on Windows.
-# TF 2.12-2.14 support CUDA 11.8 on Linux only; 2.15+ requires CUDA 12.x.
+# --- Deep Learning ---
+# TF 2.10.1 = last version supporting CUDA 11.8 on Windows.
+# Unified package handles GPU automatically; do NOT add tensorflow-gpu.
 tensorflow==2.10.1
-tensorflow-gpu==2.10.1
-keras==2.10.0
-# PyTorch pinned for CUDA compatibility; upgrade together with torchvision.
-torch>=2.1,<2.2
+torch>=2.1,<2.2              # CUDA 11.8 compatible
 torchvision>=0.16,<0.17
 
-# --- Computer Vision / Face Analysis -------------------------------------
+# --- Computer Vision ---
 opencv-python>=4.8,<5.0
 Pillow>=10.0,<12.0
-# DeepFace 0.0.99 (2026-03-01): adds yolov11/yolov12/centerface detectors,
-# improved anti-spoofing, Docker image support.
-deepface>=0.0.99,<0.1.0
+deepface>=0.0.99,<0.1.0      # 0.0.99: yolov11/12, centerface
 mtcnn==0.1.1
 retina-face>=0.0.14,<0.0.18
 
-# --- Web Framework --------------------------------------------------------
+# --- Web ---
 Flask>=3.0,<4.0
 flask-cors>=4.0,<5.0
 flask-limiter>=3.0,<4.0
 gunicorn>=21.2,<23.0
 
-# --- GenAI & Database -----------------------------------------------------
-# google-genai: unified SDK replacing deprecated google-generativeai.
-# google-generativeai reached EOL on 2025-11-30; do NOT re-add it.
-# Migration guide: https://ai.google.dev/gemini-api/docs/migrate
-google-genai>=1.65,<2.0
+# --- GenAI & Database ---
+google-genai>=1.65,<2.0      # unified SDK (google-generativeai is EOL)
 supabase>=2.5,<3.0
-
-# --- Testing --------------------------------------------------------------
-pytest>=7.0,<9.0
-pytest-cov>=4.0,<6.0
-pytest-mock>=3.0,<4.0
-
-# --- Utilities ------------------------------------------------------------
-tqdm>=4.67,<5.0
-gdown>=5.0,<6.0
-fire>=0.7,<0.8

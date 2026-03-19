@@ -22,11 +22,13 @@ src/frontend/build/
 npm-debug.log*
 .eslintcache
 
-# ---------- Environment & Secrets ----------
+# ---------- Secrets ----------
 .env
 *.env
 !.env.example
 !backend.env.example
+config/secrets.yml
+config/secrets.*.yml
 *.key
 *.pem
 src/backend/backend.env
