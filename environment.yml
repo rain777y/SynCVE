@@ -1,0 +1,15 @@
+# ============================================================================
+# SynCVE Conda Environment
+# Usage: conda env create -f environment.yml
+#        conda activate SynCVE
+# ============================================================================
+name: SynCVE
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - -r requirements.txt

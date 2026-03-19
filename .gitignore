@@ -1,0 +1,101 @@
+# ===========================
+# SynCVE .gitignore
+# Stack: Python (Flask/DeepFace) + React (CRA) + Supabase
+# ===========================
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# ---------- Node / React ----------
+node_modules/
+package-lock.json
+/build
+src/frontend/build/
+npm-debug.log*
+.eslintcache
+
+# ---------- Environment & Secrets ----------
+.env
+*.env
+!.env.example
+!backend.env.example
+*.key
+*.pem
+src/backend/backend.env
+
+# ---------- Virtual Environment ----------
+venv/
+.venv/
+env/
+ENV/
+.conda/
+conda-meta/
+
+# ---------- IDE ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Logs ----------
+*.log
+logs/
+
+# ---------- ML Models (large files) ----------
+*.h5
+*.pb
+*.ckpt
+*.pth
+*.weights
+*.pkl
+*.pickle
+*.onnx
+*.tflite
+
+# ---------- DeepFace Cache ----------
+.deepface/
+weights/
+
+# ---------- Dev (charts, docs, tests, setup) ----------
+dev/
+
+# ---------- Testing ----------
+.coverage
+.pytest_cache/
+htmlcov/
+coverage/
+
+# ---------- Temp & Cache ----------
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+.cache/
+
+# ---------- Jupyter ----------
+.ipynb_checkpoints/
+*.ipynb
+
+# ---------- Draft & Backup ----------
+*_DRAFT/
+*.backup
+*.old
+
+# ---------- Claude / AI Agent ----------
+.agent/
+.claude/

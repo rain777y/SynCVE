@@ -1,0 +1,235 @@
+/**
+ * EmotionProgressBars Styles
+ * 
+ * Styling for emotion progress bars component
+ * 
+ * @version 1.0.0
+ * @date 2025-10-25
+ */
+
+/* Container */
+.emotion-progress-container {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
+  font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+  z-index: 1000;
+}
+
+/* Title */
+.emotion-progress-title {
+  margin: 0 0 20px 0;
+  color: var(--text-primary);
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Emotion Row */
+.emotion-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 10px;
+}
+
+.emotion-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Label */
+.emotion-label {
+  min-width: 120px;
+  font-weight: bold;
+  font-size: 18px;
+  color: var(--text-primary);
+  cursor: default;
+  user-select: none;
+}
+
+/* Progress Bar */
+.emotion-progress {
+  flex: 1;
+  height: 28px;
+  border: none;
+  border-radius: 14px;
+  overflow: hidden;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+}
+
+/* WebKit browsers (Chrome, Safari, Edge) */
+.emotion-progress::-webkit-progress-bar {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+}
+
+.emotion-progress::-webkit-progress-value {
+  background: linear-gradient(
+    90deg,
+    var(--progress-color, #10b981) 0%,
+    var(--progress-color, #10b981) 100%
+  );
+  border-radius: 14px;
+  transition: width 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Firefox */
+.emotion-progress::-moz-progress-bar {
+  background: linear-gradient(
+    90deg,
+    var(--progress-color, #10b981) 0%,
+    var(--progress-color, #10b981) 100%
+  );
+  border-radius: 14px;
+  transition: width 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Percentage Value */
+.emotion-value {
+  min-width: 50px;
+  text-align: right;
+  font-weight: bold;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+/* Animation */
+.emotion-progress-container.animated .emotion-progress::-webkit-progress-value {
+  animation: progressPulse 2s ease-in-out infinite;
+}
+
+.emotion-progress-container.animated .emotion-progress::-moz-progress-bar {
+  animation: progressPulse 2s ease-in-out infinite;
+}
+
+@keyframes progressPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Hover Effects */
+.emotion-row:hover .emotion-progress {
+  transform: scaleY(1.05);
+  transition: transform 0.2s ease;
+}
+
+.emotion-row:hover .emotion-label {
+  transform: translateX(5px);
+  transition: transform 0.2s ease;
+}
+
+.emotion-row:hover .emotion-value {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .emotion-progress-container {
+    width: 90% !important;
+    left: 5% !important;
+    right: 5% !important;
+    transform: none !important;
+  }
+
+  .emotion-label {
+    min-width: 80px;
+    font-size: 14px;
+  }
+
+  .emotion-progress {
+    height: 24px;
+  }
+
+  .emotion-value {
+    min-width: 40px;
+    font-size: 14px;
+  }
+
+  .emotion-progress-title {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .emotion-progress-container {
+    padding: 15px;
+  }
+
+  .emotion-label {
+    min-width: 60px;
+    font-size: 12px;
+  }
+
+  .emotion-progress {
+    height: 20px;
+  }
+
+  .emotion-value {
+    min-width: 35px;
+    font-size: 12px;
+  }
+
+  .emotion-progress-title {
+    font-size: 18px;
+    margin-bottom: 15px;
+  }
+
+  .emotion-row {
+    margin-bottom: 10px;
+  }
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+  .emotion-progress-container {
+    background: rgba(40, 44, 52, 0.95);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .emotion-progress-title {
+    color: #fff;
+  }
+
+  .emotion-value {
+    color: #fff;
+  }
+
+  .emotion-progress {
+    background-color: #555;
+  }
+
+  .emotion-progress::-webkit-progress-bar {
+    background-color: #555;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .emotion-progress-container {
+    position: static !important;
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+
+  .emotion-progress-container.animated .emotion-progress::-webkit-progress-value,
+  .emotion-progress-container.animated .emotion-progress::-moz-progress-bar {
+    animation: none;
+  }
+}
+
