@@ -10,7 +10,6 @@ import numpy as np
 from deepface import DeepFace
 from deepface.commons import image_utils
 from deepface.commons.logger import Logger
-from src.backend import gpu_utils
 from src.backend.config import get_config
 
 logger = Logger()

@@ -80,6 +80,26 @@ def create_app():
             app.view_functions[rule.endpoint] = limiter.limit("10/minute")(view_func)
 
     logger.info(f"SynCVE Backend v{DeepFace.__version__} ready")
+
+    def _warmup_models():
+        """Pre-load DeepFace models to eliminate first-request latency."""
+        import numpy as np
+        try:
+            dummy = np.zeros((224, 224, 3), dtype=np.uint8)
+            DeepFace.analyze(
+                img_path=dummy,
+                actions=["emotion"],
+                detector_backend="retinaface",
+                enforce_detection=False,
+                silent=True,
+                anti_spoofing=False,
+            )
+            logger.info("DeepFace models warmed up successfully")
+        except Exception as e:
+            logger.warn(f"Model warmup failed (non-fatal): {e}")
+
+    _warmup_models()
+
     return app
 
 

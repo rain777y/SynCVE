@@ -86,6 +86,12 @@ def configure_gpu_memory(
     """
     Configure GPU memory settings.
 
+    NOTE: This function is not actively used by the application. The VRAM
+    calculation below uses ``compute_capability`` (e.g. 8.6 for RTX 3060)
+    as if it were the total VRAM in GB, which is incorrect. The primary
+    GPU memory configuration is handled in ``app.py`` via
+    ``tf.config.experimental.set_memory_growth``.
+
     Args:
         memory_fraction (float): Fraction of GPU memory to use (0.0-1.0)
         allow_growth (bool): Whether to allow dynamic memory growth

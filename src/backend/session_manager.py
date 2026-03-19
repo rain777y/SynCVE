@@ -12,6 +12,7 @@ and in-memory caching.  Heavy-lifting is delegated to:
 import base64
 import collections
 import json
+import threading
 import time
 import traceback
 from datetime import datetime, timezone
@@ -22,6 +23,7 @@ from deepface.commons.logger import Logger
 
 from src.backend.config import get_config
 from src.backend.storage import get_supabase_client, upload_frame_to_storage
+from src.backend.temporal_analysis import TemporalAnalyzer
 
 # Re-export report/analytics functions so existing imports from
 # ``session_manager`` continue to work (backward compatibility).
@@ -71,10 +73,39 @@ _vision_cache: Dict[str, Deque[Dict[str, Any]]] = {}
 _VISION_CACHE_LIMIT = 120
 
 
+# Per-session temporal analyzers
+_temporal_analyzers: Dict[str, TemporalAnalyzer] = {}
+
+# Session TTL: evict stale in-memory caches after 30 minutes
+_SESSION_TTL_SECONDS = 30 * 60  # 30 minutes
+_session_start_times: Dict[str, float] = {}
+
+
 def _cleanup_session_cache(session_id: str) -> None:
     """Remove ALL in-memory data for a session to prevent leaks."""
     _last_upload_times.pop(session_id, None)
     _vision_cache.pop(session_id, None)
+    _temporal_analyzers.pop(session_id, None)
+    _session_start_times.pop(session_id, None)
+
+
+def _session_ttl_cleanup_loop():
+    """Background thread: evict stale session caches every 5 minutes."""
+    while True:
+        try:
+            now = time.time()
+            stale = [sid for sid, t in _session_start_times.items()
+                     if now - t > _SESSION_TTL_SECONDS]
+            for sid in stale:
+                _cleanup_session_cache(sid)
+                _session_start_times.pop(sid, None)
+                logger.info(f"TTL evicted session cache: {sid}")
+        except Exception as exc:
+            logger.warn(f"TTL cleanup error: {exc}")
+        time.sleep(300)
+
+
+threading.Thread(target=_session_ttl_cleanup_loop, daemon=True, name="session-ttl").start()
 
 
 def _cache_vision_sample(session_id: str, sample: Dict[str, Any]) -> None:
@@ -194,26 +225,20 @@ def fetch_emotion_logs(session_id: str, limit: int = 500) -> List[Dict[str, Any]
         except Exception as e:
             logger.warn(f"Failed to fetch vision_samples for {session_id}: {e}")
 
-        if not records:
-            try:
-                response = (
-                    supabase.table("emotion_logs")
-                    .select("*")
-                    .eq("session_id", session_id)
-                    .order("created_at", desc=True)
-                    .limit(limit)
-                    .execute()
-                )
-                records = response.data or []
-            except Exception as e:
-                logger.warn(f"Failed to fetch legacy emotion_logs for {session_id}: {e}")
-
     if not records:
         cached = _vision_cache.get(session_id)
         if cached:
             return list(cached)[-limit:]
 
     return records
+
+
+def get_temporal_summary(session_id: str) -> Optional[Dict]:
+    """Get temporal analysis summary for a session."""
+    analyzer = _temporal_analyzers.get(session_id)
+    if analyzer and analyzer._frame_count > 0:
+        return analyzer.get_session_summary()
+    return None
 
 
 # ============================================================================
@@ -239,6 +264,15 @@ def start_session(
         if response.data and len(response.data) > 0:
             session_id = response.data[0]["id"]
             _last_upload_times[session_id] = 0
+            _session_start_times[session_id] = time.time()
+            # Initialize temporal analyzer for this session
+            tcfg = get_config().temporal
+            _temporal_analyzers[session_id] = TemporalAnalyzer(
+                alpha=tcfg.ema_alpha,
+                transition_threshold=tcfg.transition_threshold,
+                volatility_window=tcfg.volatility_window,
+                fps_estimate=tcfg.fps_estimate,
+            )
             _record_session_event(session_id, "active", None, "Session started", metadata)
             return {"session_id": session_id, "status": "active"}
         else:
@@ -314,6 +348,8 @@ def pause_session(session_id: str) -> Dict[str, Any]:
             "stats_summary": fast_result.get("stats_summary"),
             "text_summary": fast_result.get("text_summary"),
             "emotion_ranking": fast_result.get("emotion_ranking"),
+            "emotion_timeline": fast_result.get("emotion_timeline"),
+            "temporal": fast_result.get("temporal"),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -484,13 +520,17 @@ def log_data(
             "metadata": metadata_payload,
         })
 
+        # Feed to temporal analyzer
+        analyzer = _temporal_analyzers.get(session_id)
+        if analyzer and emotions_data:
+            analyzer.add_frame(emotions_data)
+
         if supabase:
             vision_payload = {
                 **payload,
                 "raw_payload": payload_root if isinstance(payload_root, dict) else {"result": str(payload_root)},
             }
             supabase.table("vision_samples").insert(vision_payload).execute()
-            supabase.table("emotion_logs").insert(payload).execute()
             try:
                 supabase.table("sessions").update({
                     "last_event_at": datetime.now(timezone.utc).isoformat(),

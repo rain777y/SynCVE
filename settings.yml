@@ -53,5 +53,11 @@ report:
   visual_aspect_ratio: "16:9"
   visual_style_preset: "futuristic"
 
+temporal:
+  ema_alpha: 0.3               # EMA smoothing factor (0=full memory, 1=raw)
+  transition_threshold: 0.15   # min score delta to register an emotion transition
+  volatility_window: 10        # sliding window size for std dev calculation
+  fps_estimate: 0.5            # frames per second for duration conversion
+
 supabase:
   bucket_name: "syn_cve_assets"

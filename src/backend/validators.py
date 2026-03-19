@@ -44,7 +44,7 @@ class AnalyzeRequest(BaseModel):
 
     img: str = Field(..., min_length=1, description="Base64 image, file path, or URL")
     actions: List[str] = Field(
-        default=["age", "gender", "emotion", "race"],
+        default=["emotion"],
         description="Analysis actions to perform",
     )
     detector_backend: Optional[str] = Field(

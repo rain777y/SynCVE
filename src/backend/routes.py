@@ -26,6 +26,20 @@ blueprint = Blueprint("routes", __name__)
 
 # pylint: disable=no-else-return, broad-except
 
+DISCLAIMER = (
+    "Emotion predictions are inferred from facial expression patterns using machine learning. "
+    "They do not represent definitive measures of internal emotional states. "
+    "Results should be interpreted as probabilistic estimates."
+)
+
+
+def make_error_response(message: str, status_code: int = 500, error_id: str = None) -> tuple:
+    """Standardized error response."""
+    import uuid
+    if error_id is None:
+        error_id = str(uuid.uuid4())[:8]
+    return {"error": message, "error_id": error_id}, status_code
+
 
 def _deepface_cfg():
     """Shorthand accessor for DeepFace config defaults."""
@@ -45,6 +59,27 @@ def _default_distance_metric():
 @blueprint.route("/")
 def home():
     return f"<h1>Welcome to SynCVE Backend (DeepFace API v{DeepFace.__version__})!</h1>"
+
+
+@blueprint.route("/health", methods=["GET"])
+def health_check():
+    """System health check for monitoring."""
+    checks = {"status": "ok", "checks": {}}
+    checks["checks"]["deepface"] = "ok"
+    try:
+        from src.backend.storage import get_supabase_client
+        client = get_supabase_client()
+        checks["checks"]["supabase"] = "ok" if client else "unavailable"
+    except Exception:
+        checks["checks"]["supabase"] = "error"
+    try:
+        import tensorflow as tf
+        gpus = tf.config.list_physical_devices('GPU')
+        checks["checks"]["gpu"] = f"{len(gpus)} GPU(s)" if gpus else "CPU only"
+    except Exception:
+        checks["checks"]["gpu"] = "unknown"
+    has_error = any(v == "error" for v in checks["checks"].values())
+    return checks, 200 if not has_error else 503
 
 
 @blueprint.route("/config")
@@ -83,6 +118,11 @@ def extract_image_from_request(img_key: str) -> Union[str, np.ndarray]:
         if file.filename == "":
             raise ValueError(f"No file uploaded for '{img_key}'")
 
+        if hasattr(file, 'content_type') and file.content_type:
+            allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/bmp'}
+            if file.content_type not in allowed_types:
+                raise ValueError(f"Unsupported image type: {file.content_type}")
+
         img = image_utils.load_image_from_file_storage(file)
 
         return img
@@ -99,6 +139,9 @@ def extract_image_from_request(img_key: str) -> Union[str, np.ndarray]:
         if not img:
             raise ValueError(f"'{img_key}' not found in either json or form data request")
 
+        if isinstance(img, str) and not img.startswith("data:image/"):
+            raise ValueError("Only base64 data-URI images are accepted. File paths and URLs are not allowed.")
+
         return img
 
     # If neither JSON nor file input is present
@@ -114,7 +157,7 @@ def represent():
     try:
         img = extract_image_from_request("img")
     except Exception as err:
-        return {"exception": str(err)}, 400
+        return make_error_response(str(err), 400)
 
     obj = service.represent(
         img_path=img,
@@ -140,12 +183,12 @@ def verify():
     try:
         img1 = extract_image_from_request("img1")
     except Exception as err:
-        return {"exception": str(err)}, 400
+        return make_error_response(str(err), 400)
 
     try:
         img2 = extract_image_from_request("img2")
     except Exception as err:
-        return {"exception": str(err)}, 400
+        return make_error_response(str(err), 400)
 
     verification = service.verify(
         img1_path=img1,
@@ -172,13 +215,13 @@ def analyze():
     try:
         img = extract_image_from_request("img")
     except Exception as err:
-        return {"exception": str(err)}, 400
+        return make_error_response(str(err), 400)
 
     # Validate actions (and other fields) via Pydantic
     try:
         validated = AnalyzeRequest(
             img="placeholder",  # image already extracted above
-            actions=input_args.get("actions", ["age", "gender", "emotion", "race"]),
+            actions=input_args.get("actions", ["emotion"]),
             detector_backend=input_args.get("detector_backend"),
             enforce_detection=input_args.get("enforce_detection"),
             align=input_args.get("align"),
@@ -215,6 +258,9 @@ def analyze():
             logger.error(f"Failed to log session data: {e}")
     else:
         logger.warn("Session ID missing on /analyze; skipping session logging.")
+
+    if isinstance(demographies, dict):
+        demographies["disclaimer"] = DISCLAIMER
 
     logger.debug(demographies)
 

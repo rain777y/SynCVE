@@ -71,7 +71,7 @@
   margin-bottom: 16px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 768px) {
   .report-charts {
     grid-template-columns: 1fr;
   }
@@ -92,6 +92,14 @@
   color: #888;
 }
 
+.chart-card h4 {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+}
+
 .chart-wide {
   grid-column: 1 / -1;
 }
@@ -100,5 +108,181 @@
   display: flex;
   gap: 12px;
   justify-content: center;
+  margin-top: 20px;
+}
+
+/* Stability Gauge */
+.stability-gauge {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stability-gauge h4 {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+  white-space: nowrap;
+}
+
+.gauge-bar {
+  flex: 1;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.gauge-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #E74C3C 0%, #F39C12 40%, #27AE60 80%, #2ECC71 100%);
+  transition: width 0.5s ease;
+}
+
+.gauge-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Temporal Chart */
+.temporal-chart {
+  margin-bottom: 16px;
+}
+
+/* Transition Flow */
+.transition-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.transition-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+.transition-item .from,
+.transition-item .to {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.transition-item .arrow {
+  color: #666;
+  font-size: 1rem;
+}
+
+.transition-item .frame-label {
+  color: #555;
+  font-size: 0.7rem;
+  margin-left: 4px;
+}
+
+/* Trends Grid */
+.trends-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.trend-item .trend-arrow {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.trend-item .trend-emotion {
+  text-transform: capitalize;
+  font-weight: 500;
+  color: #ddd;
+}
+
+.trend-item small {
+  color: #666;
+  font-size: 0.7rem;
+}
+
+.trend-increasing .trend-arrow {
+  color: #27AE60;
+}
+
+.trend-decreasing .trend-arrow {
+  color: #E74C3C;
+}
+
+/* Disclaimer */
+.disclaimer-text {
+  font-size: 0.75rem;
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  margin-top: 16px;
+  padding: 0 20px;
+  line-height: 1.5;
+}
+
+/* Consent Banner */
+.consent-banner {
+  max-width: 500px;
+  margin: 80px auto;
+  padding: 32px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.consent-banner h3 {
+  color: #fff;
+  margin: 0 0 16px;
+}
+
+.consent-banner p {
+  color: #ccc;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.consent-banner ul {
+  text-align: left;
+  color: #aaa;
+  font-size: 0.85rem;
+  padding-left: 24px;
+  margin: 12px 0;
+}
+
+.consent-banner ul li {
+  margin: 6px 0;
+}
+
+.consent-banner button {
   margin-top: 20px;
 }

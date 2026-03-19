@@ -115,17 +115,6 @@ def _coerce(val: str) -> Any:
     return val
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
-    """Recursively merge override into base."""
-    merged = base.copy()
-    for key, val in override.items():
-        if key in merged and isinstance(merged[key], dict) and isinstance(val, dict):
-            merged[key] = _deep_merge(merged[key], val)
-        elif val is not None and val != "":
-            merged[key] = val
-    return merged
-
-
 def _get(data: dict, *keys, default=None):
     """Safely traverse nested dict."""
     current = data
@@ -204,6 +193,14 @@ class GeminiConfig:
 
 
 @dataclass(frozen=True)
+class TemporalConfig:
+    ema_alpha: float = 0.3
+    transition_threshold: float = 0.15
+    volatility_window: int = 10
+    fps_estimate: float = 0.5
+
+
+@dataclass(frozen=True)
 class ClientConfig:
     detection_interval: int = 2000
 
@@ -216,6 +213,7 @@ class AppConfig:
     supabase: SupabaseConfig
     gemini: GeminiConfig
     client: ClientConfig = field(default_factory=ClientConfig)
+    temporal: TemporalConfig = field(default_factory=TemporalConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +303,12 @@ def load_config() -> AppConfig:
         ),
         client=ClientConfig(
             detection_interval=int(_get(cfg, "client", "detection_interval", default=2000)),
+        ),
+        temporal=TemporalConfig(
+            ema_alpha=float(_get(cfg, "temporal", "ema_alpha", default=0.3)),
+            transition_threshold=float(_get(cfg, "temporal", "transition_threshold", default=0.15)),
+            volatility_window=int(_get(cfg, "temporal", "volatility_window", default=10)),
+            fps_estimate=float(_get(cfg, "temporal", "fps_estimate", default=0.5)),
         ),
     )
 

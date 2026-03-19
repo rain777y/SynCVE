@@ -54,7 +54,7 @@ def generate_fast_report(
         Dict with session_id, metrics, stats_summary, emotion_timeline,
         and a human-readable text_summary built from the data.
     """
-    from src.backend.session_manager import fetch_emotion_logs, persist_aggregate_snapshot
+    from src.backend.session_manager import fetch_emotion_logs, persist_aggregate_snapshot, get_temporal_summary
 
     if not session_id:
         raise ValueError("session_id is required")
@@ -68,6 +68,9 @@ def generate_fast_report(
 
     metrics = aggregate_emotion_metrics(vision_data)
     stats = summarize_for_art_direction(metrics)
+
+    # Temporal analysis data (None if no temporal data available)
+    temporal = get_temporal_summary(session_id)
 
     # Build a readable summary without any LLM call
     dominant = metrics.get("dominant", "unknown")
@@ -110,6 +113,7 @@ def generate_fast_report(
         "emotion_ranking": [{"emotion": e, "score": round(s, 4)} for e, s in ranked],
         "emotion_timeline": timeline,
         "samples": samples,
+        "temporal": temporal,
     }
 
 

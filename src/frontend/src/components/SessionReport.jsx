@@ -1,13 +1,12 @@
 /**
  * SessionReport — Data-driven emotion analytics dashboard.
- * Renders structured report data using Recharts.
- * Replaces the old AI-generated image approach with instant, interactive charts.
+ * Renders structured report data using Recharts, including temporal analysis.
  */
 import React from 'react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  AreaChart, Area, CartesianGrid,
+  AreaChart, Area, CartesianGrid, PieChart, Pie, Legend,
 } from 'recharts';
 import './SessionReport.css';
 
@@ -35,6 +34,7 @@ const SessionReport = ({ report, onResume, onStop }) => {
     emotion_timeline = [],
     metrics = {},
     stats_summary = {},
+    temporal,
   } = report;
 
   const dominant = stats_summary.dominant || metrics.dominant || 'neutral';
@@ -66,6 +66,24 @@ const SessionReport = ({ report, onResume, onStop }) => {
     return { index: i, ...scores, label: entry.emotion || '' };
   });
 
+  // Smoothed timeline from temporal data
+  const smoothedTimelineData = temporal?.smoothed_timeline?.map((entry) => {
+    const emos = {};
+    if (entry.emotions) {
+      Object.entries(entry.emotions).forEach(([emo, val]) => {
+        emos[emo] = Math.round(val * 100);
+      });
+    }
+    return { frame: entry.frame, ...emos, dominant: entry.dominant };
+  }) || [];
+
+  // Duration pie data
+  const durationData = temporal?.durations?.map(d => ({
+    name: d.emotion.charAt(0).toUpperCase() + d.emotion.slice(1),
+    value: d.duration_sec,
+    emotion: d.emotion,
+  })) || [];
+
   const dominantColor = EMOTION_COLORS[dominant] || '#888';
 
   return (
@@ -86,6 +104,17 @@ const SessionReport = ({ report, onResume, onStop }) => {
         <span className="sample-count">{samples} frames analyzed</span>
       </div>
 
+      {/* Stability Score */}
+      {temporal?.stability_score != null && (
+        <div className="stability-gauge" aria-label={`Emotional stability: ${(temporal.stability_score * 100).toFixed(0)}%`}>
+          <h4>Emotional Stability</h4>
+          <div className="gauge-bar">
+            <div className="gauge-fill" style={{ width: `${temporal.stability_score * 100}%` }} />
+          </div>
+          <span className="gauge-label">{(temporal.stability_score * 100).toFixed(0)}%</span>
+        </div>
+      )}
+
       {/* Charts Grid */}
       <div className="report-charts">
         {/* Radar Chart */}
@@ -94,22 +123,9 @@ const SessionReport = ({ report, onResume, onStop }) => {
           <ResponsiveContainer width="100%" height={280}>
             <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
               <PolarGrid stroke="rgba(255,255,255,0.1)" />
-              <PolarAngleAxis
-                dataKey="emotion"
-                tick={{ fill: '#ccc', fontSize: 12 }}
-              />
-              <PolarRadiusAxis
-                angle={90}
-                domain={[0, 100]}
-                tick={{ fill: '#666', fontSize: 10 }}
-              />
-              <Radar
-                dataKey="value"
-                stroke={dominantColor}
-                fill={dominantColor}
-                fillOpacity={0.25}
-                strokeWidth={2}
-              />
+              <PolarAngleAxis dataKey="emotion" tick={{ fill: '#ccc', fontSize: 12 }} />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#666', fontSize: 10 }} />
+              <Radar dataKey="value" stroke={dominantColor} fill={dominantColor} fillOpacity={0.25} strokeWidth={2} />
             </RadarChart>
           </ResponsiveContainer>
         </div>
@@ -120,29 +136,38 @@ const SessionReport = ({ report, onResume, onStop }) => {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={barData} layout="vertical" margin={{ left: 10 }}>
               <XAxis type="number" domain={[0, 100]} tick={{ fill: '#999' }} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={80}
-                tick={{ fill: '#ccc', fontSize: 12 }}
-              />
-              <Tooltip
-                contentStyle={{ background: '#222', border: '1px solid #444', borderRadius: 8 }}
-                labelStyle={{ color: '#fff' }}
-                formatter={(value) => [`${value}%`, 'Score']}
-              />
+              <YAxis type="category" dataKey="name" width={80} tick={{ fill: '#ccc', fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: '#222', border: '1px solid #444', borderRadius: 8 }}
+                labelStyle={{ color: '#fff' }} formatter={(value) => [`${value}%`, 'Score']} />
               <Bar dataKey="score" radius={[0, 6, 6, 0]}>
-                {barData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
+                {barData.map((entry, i) => (<Cell key={i} fill={entry.color} />))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Timeline */}
-      {timelineData.length > 2 && (
+      {/* Smoothed Emotion Waveform (temporal) */}
+      {smoothedTimelineData.length > 2 && (
+        <div className="chart-card chart-wide temporal-chart">
+          <h3>Emotion Waveform (EMA Smoothed)</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <AreaChart data={smoothedTimelineData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="frame" tick={{ fill: '#666', fontSize: 10 }} />
+              <YAxis domain={[0, 100]} tick={{ fill: '#666', fontSize: 10 }} />
+              <Tooltip contentStyle={{ background: '#222', border: '1px solid #444', borderRadius: 8 }} />
+              {Object.entries(EMOTION_COLORS).map(([emo, color]) => (
+                <Area key={emo} type="monotone" dataKey={emo} name={emo}
+                  stroke={color} fill={color} fillOpacity={0.15} strokeWidth={1.5} />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Fallback: raw timeline if no temporal data */}
+      {!smoothedTimelineData.length && timelineData.length > 2 && (
         <div className="chart-card chart-wide">
           <h3>Emotion Timeline</h3>
           <ResponsiveContainer width="100%" height={200}>
@@ -150,22 +175,76 @@ const SessionReport = ({ report, onResume, onStop }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="index" tick={{ fill: '#666', fontSize: 10 }} />
               <YAxis domain={[0, 100]} hide />
-              <Tooltip
-                contentStyle={{ background: '#222', border: '1px solid #444', borderRadius: 8 }}
-              />
+              <Tooltip contentStyle={{ background: '#222', border: '1px solid #444', borderRadius: 8 }} />
               {Object.entries(EMOTION_COLORS).map(([emo, color]) => (
-                <Area
-                  key={emo}
-                  type="monotone"
-                  dataKey={emo}
-                  stackId="1"
-                  stroke={color}
-                  fill={color}
-                  fillOpacity={0.6}
-                />
+                <Area key={emo} type="monotone" dataKey={emo} stackId="1"
+                  stroke={color} fill={color} fillOpacity={0.6} />
               ))}
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Temporal: Transitions + Duration + Trends */}
+      {temporal && (
+        <div className="report-charts">
+          {/* Transitions */}
+          {temporal.transitions?.length > 0 && (
+            <div className="chart-card">
+              <h3>Emotion Transitions ({temporal.transition_count})</h3>
+              <div className="transition-flow">
+                {temporal.transitions.map((t, i) => (
+                  <div key={i} className="transition-item">
+                    <span className="from" style={{ color: EMOTION_COLORS[t.from_emotion] || '#888' }}>
+                      {t.from_emotion}
+                    </span>
+                    <span className="arrow" aria-label="transitions to">&rarr;</span>
+                    <span className="to" style={{ color: EMOTION_COLORS[t.to_emotion] || '#888' }}>
+                      {t.to_emotion}
+                    </span>
+                    <small className="frame-label">frame {t.frame_idx}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Duration Pie */}
+          {durationData.length > 0 && (
+            <div className="chart-card">
+              <h3>Time per Emotion</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={durationData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                    outerRadius={70} label={({ name, value }) => `${name} ${value.toFixed(0)}s`}>
+                    {durationData.map((d, i) => (
+                      <Cell key={i} fill={EMOTION_COLORS[d.emotion] || '#888'} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={v => `${v.toFixed(1)}s`} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Trend Indicators */}
+      {temporal?.trends?.filter(t => t.direction !== 'stable').length > 0 && (
+        <div className="chart-card chart-wide">
+          <h3>Emotion Trends</h3>
+          <div className="trends-grid">
+            {temporal.trends.filter(t => t.direction !== 'stable').map(t => (
+              <div key={t.emotion} className={`trend-item trend-${t.direction}`}>
+                <span className="trend-arrow" aria-label={t.direction}>
+                  {t.direction === 'increasing' ? '\u2191' : '\u2193'}
+                </span>
+                <span className="trend-emotion">{t.emotion}</span>
+                <small>R\u00B2={t.r_squared.toFixed(2)}</small>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -173,12 +252,13 @@ const SessionReport = ({ report, onResume, onStop }) => {
       {report.visual_report_url && (
         <div className="chart-card chart-wide">
           <h3>AI Dashboard</h3>
-          <img
-            src={report.visual_report_url}
-            alt="AI Visual Report"
-            style={{ width: '100%', borderRadius: 8 }}
-          />
+          <img src={report.visual_report_url} alt="AI Visual Report" style={{ width: '100%', borderRadius: 8 }} />
         </div>
+      )}
+
+      {/* Disclaimer */}
+      {report.disclaimer && (
+        <p className="disclaimer-text">{report.disclaimer}</p>
       )}
 
       {/* Actions */}

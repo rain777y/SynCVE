@@ -79,6 +79,7 @@ dev/
 # ---------- Datasets (large files) ----------
 eval/datasets/
 eval/results/
+eval/cache/
 
 # ---------- Testing ----------
 .coverage
