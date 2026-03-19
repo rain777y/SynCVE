@@ -379,9 +379,11 @@ def evaluate_pipeline_on_dataset(
         raw_results.append(result)
         latencies.append(elapsed_ms)
 
-    # Step 3: Post-processing (only for pipeline mode)
-    if mode == "pipeline" and raw_results:
-        raw_results = postprocess_predictions(raw_results, EMA_ALPHA, NOISE_FLOOR)
+    # NOTE: EMA temporal smoothing is NOT applied here because these are
+    # independent static images, not a video sequence.  EMA is only
+    # meaningful for consecutive frames of the same subject.
+    # Temporal post-processing is evaluated separately in ablation_postprocess.py.
+    # This comparison isolates: preprocessing + ensemble detection gains.
 
     y_pred = [r["dominant_emotion"] for r in raw_results]
 
@@ -541,8 +543,7 @@ def run_comparison(args: argparse.Namespace) -> None:
             "preprocessing": "full_preprocess (SR + unsharp + CLAHE)",
             "ensemble_detectors": ENSEMBLE_DETECTORS,
             "ensemble_weights": ENSEMBLE_WEIGHTS,
-            "ema_alpha": EMA_ALPHA,
-            "noise_floor": NOISE_FLOOR,
+            "temporal_postprocess": "NOT applied (static images; see ablation_postprocess for temporal eval)",
         },
         "metadata": {
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),

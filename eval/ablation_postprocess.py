@@ -221,23 +221,84 @@ def collect_image_paths_by_emotion(dataset_dir: str) -> dict:
 
 
 def build_batches(by_emotion: dict, batch_size: int, limit: int) -> list:
-    """Build same-emotion batches of `batch_size` images.
+    """Build two types of batches for complementary temporal evaluation.
 
-    Returns list of (emotion_label, [img_path, ...]) tuples.
+    Type 1 — Stability batches (same-emotion):
+        All frames share ground truth emotion.  Tests: does EMA reduce
+        within-emotion jitter without changing the correct dominant label?
+
+    Type 2 — Transition batches (multi-emotion):
+        Realistic scenario: e.g. neutral(5) → happy(8) → neutral(4) → sad(3).
+        Tests: does EMA preserve real transitions while still reducing noise?
+
+    Returns list of (batch_type, ground_truth_seq, [img_path, ...]) tuples.
+        ground_truth_seq is a list of per-frame ground-truth labels.
     """
     batches = []
+
+    # --- Type 1: same-emotion stability batches ---
     for emotion, paths in by_emotion.items():
-        # Shuffle within each emotion for variety
         shuffled = paths.copy()
         random.shuffle(shuffled)
         for i in range(0, len(shuffled), batch_size):
             batch = shuffled[i : i + batch_size]
             if len(batch) == batch_size:
-                batches.append((emotion, batch))
+                gt_seq = [emotion] * batch_size
+                batches.append(("stability", gt_seq, batch))
+
+    # --- Type 2: transition batches (realistic multi-emotion sequences) ---
+    # Simulate a user whose emotion shifts: pick 2-4 emotions, allocate
+    # frames proportionally, stitch images together in order.
+    emotions_available = [e for e in by_emotion if len(by_emotion[e]) >= batch_size]
+    if len(emotions_available) >= 2:
+        # Generate transition scenarios
+        transition_patterns = [
+            # (emotion, frame_count) sequences
+            [("neutral", 6), ("happy", 8), ("neutral", 6)],
+            [("happy", 5), ("sad", 5), ("happy", 5), ("sad", 5)],
+            [("neutral", 4), ("surprise", 3), ("happy", 6), ("neutral", 4), ("sad", 3)],
+            [("angry", 4), ("neutral", 8), ("happy", 5), ("neutral", 3)],
+            [("sad", 5), ("neutral", 5), ("happy", 5), ("surprise", 5)],
+        ]
+        for pattern in transition_patterns:
+            # Adjust pattern to match batch_size
+            total = sum(n for _, n in pattern)
+            if total != batch_size:
+                # Scale proportionally
+                scaled = []
+                remaining = batch_size
+                for i, (emo, n) in enumerate(pattern):
+                    if i == len(pattern) - 1:
+                        scaled.append((emo, remaining))
+                    else:
+                        adj = max(1, round(n * batch_size / total))
+                        adj = min(adj, remaining - (len(pattern) - i - 1))
+                        scaled.append((emo, adj))
+                        remaining -= adj
+                pattern = scaled
+
+            # Only use if we have all required emotions
+            needed = set(e for e, _ in pattern)
+            if not needed.issubset(set(emotions_available)):
+                continue
+
+            batch_paths = []
+            gt_seq = []
+            valid = True
+            for emo, count in pattern:
+                available = by_emotion[emo]
+                if len(available) < count:
+                    valid = False
+                    break
+                chosen = random.sample(available, count)
+                batch_paths.extend(chosen)
+                gt_seq.extend([emo] * count)
+
+            if valid and len(batch_paths) == batch_size:
+                batches.append(("transition", gt_seq, batch_paths))
 
     random.shuffle(batches)
 
-    # Limit total images (in batches)
     if limit > 0:
         max_batches = max(1, limit // batch_size)
         batches = batches[:max_batches]
@@ -261,12 +322,16 @@ def run_ablation(args: argparse.Namespace) -> None:
     import matplotlib.pyplot as plt
 
     # ------------------------------------------------------------------
-    # 1. Build same-emotion batches
+    # 1. Build stability + transition batches
     # ------------------------------------------------------------------
     by_emotion = collect_image_paths_by_emotion(args.dataset_dir)
     batches = build_batches(by_emotion, BATCH_SIZE, args.limit)
-    total_frames = sum(len(b) for _, b in batches)
+    total_frames = sum(len(paths) for _, _, paths in batches)
+    n_stability = sum(1 for t, _, _ in batches if t == "stability")
+    n_transition = sum(1 for t, _, _ in batches if t == "transition")
     print(f"\nBuilt {len(batches)} batches of {BATCH_SIZE} frames ({total_frames} total)")
+    print(f"  Stability batches (same emotion): {n_stability}")
+    print(f"  Transition batches (multi-emotion): {n_transition}")
 
     if len(batches) == 0:
         print("No complete batches found. Exiting.")
@@ -279,7 +344,7 @@ def run_ablation(args: argparse.Namespace) -> None:
     # raw_results[img_path] = {"emotion": {...}, "dominant_emotion": str} or None
     raw_results = {}
     all_paths = set()
-    for _, batch_paths in batches:
+    for _, _, batch_paths in batches:
         all_paths.update(batch_paths)
 
     for img_path in tqdm(sorted(all_paths), desc="Inference", unit="img"):
@@ -317,70 +382,99 @@ def run_ablation(args: argparse.Namespace) -> None:
         ema_alpha = config["ema_alpha"]
         noise_floor = config["noise_floor"]
 
-        batch_consistencies = []
-        batch_flicker_rates = []
-        batch_accuracies = []
+        # Separate metrics for stability vs transition batches
+        stability_consistencies = []
+        stability_flicker_rates = []
+        stability_accuracies = []
+        transition_accuracies = []
+        transition_flicker_rates = []
+        transition_correct_transitions = []  # did EMA preserve real emotion shifts?
 
-        for true_emotion, batch_paths in batches:
-            # Collect raw scores for this batch
+        for batch_type, gt_seq, batch_paths in batches:
             batch_scores = []
             batch_true_labels = []
-            for img_path in batch_paths:
+            for img_path, true_label in zip(batch_paths, gt_seq):
                 r = raw_results.get(img_path)
                 if r is None:
                     continue
                 batch_scores.append(r["emotion"])
-                batch_true_labels.append(true_emotion)
+                batch_true_labels.append(true_label)
 
             if len(batch_scores) < 2:
                 continue
 
-            # Apply EMA if configured
+            # Apply EMA
             if ema_alpha is not None:
                 processed_scores = apply_ema(batch_scores, ema_alpha)
             else:
                 processed_scores = [s.copy() for s in batch_scores]
 
-            # Apply noise floor if configured
+            # Apply noise floor
             if noise_floor is not None:
                 processed_scores = [
                     apply_noise_floor(s, noise_floor) for s in processed_scores
                 ]
 
-            # Compute per-frame dominant emotions
             dominant_seq = [get_dominant(s) for s in processed_scores]
-
-            # Metrics
             consistency = compute_consistency_score(dominant_seq)
             flicker = compute_flicker_rate(dominant_seq)
             frame_accuracy = sum(
                 1 for d, t in zip(dominant_seq, batch_true_labels) if d == t
             ) / len(dominant_seq)
 
-            batch_consistencies.append(consistency)
-            batch_flicker_rates.append(flicker)
-            batch_accuracies.append(frame_accuracy)
+            if batch_type == "stability":
+                stability_consistencies.append(consistency)
+                stability_flicker_rates.append(flicker)
+                stability_accuracies.append(frame_accuracy)
+            else:  # transition
+                transition_accuracies.append(frame_accuracy)
+                transition_flicker_rates.append(flicker)
+                # Check if real transitions were preserved:
+                # Count ground-truth transitions and see how many the model detected
+                gt_transitions = sum(
+                    1 for i in range(1, len(batch_true_labels))
+                    if batch_true_labels[i] != batch_true_labels[i - 1]
+                )
+                pred_transitions = sum(
+                    1 for i in range(1, len(dominant_seq))
+                    if dominant_seq[i] != dominant_seq[i - 1]
+                )
+                # Ratio: how many transitions survived post-processing
+                # (too few = over-smoothing, too many = under-smoothing)
+                if gt_transitions > 0:
+                    transition_preservation = min(pred_transitions / gt_transitions, 2.0)
+                else:
+                    transition_preservation = 1.0 if pred_transitions == 0 else 0.0
+                transition_correct_transitions.append(transition_preservation)
 
-        if batch_consistencies:
-            mean_consistency = float(np.mean(batch_consistencies))
-            mean_flicker = float(np.mean(batch_flicker_rates))
-            mean_accuracy = float(np.mean(batch_accuracies))
-        else:
-            mean_consistency = 0.0
-            mean_flicker = 0.0
-            mean_accuracy = 0.0
+        # Aggregate per batch type
+        def _safe_mean(lst):
+            return float(np.mean(lst)) if lst else 0.0
 
-        all_config_results[config_id] = {
+        result = {
             "config_id": config_id,
             "settings": config,
-            "consistency_score": round(mean_consistency, 4),
-            "flicker_rate": round(mean_flicker, 4),
-            "accuracy": round(mean_accuracy, 4),
-            "num_batches": len(batch_consistencies),
+            # Stability batches: same-emotion jitter reduction
+            "stability_consistency": round(_safe_mean(stability_consistencies), 4),
+            "stability_flicker": round(_safe_mean(stability_flicker_rates), 4),
+            "stability_accuracy": round(_safe_mean(stability_accuracies), 4),
+            "stability_batches": len(stability_consistencies),
+            # Transition batches: real emotion shift preservation
+            "transition_accuracy": round(_safe_mean(transition_accuracies), 4),
+            "transition_flicker": round(_safe_mean(transition_flicker_rates), 4),
+            "transition_preservation": round(_safe_mean(transition_correct_transitions), 4),
+            "transition_batches": len(transition_accuracies),
+            # Combined (backward compat)
+            "consistency_score": round(_safe_mean(stability_consistencies), 4),
+            "flicker_rate": round(_safe_mean(stability_flicker_rates + transition_flicker_rates), 4),
+            "accuracy": round(_safe_mean(stability_accuracies + transition_accuracies), 4),
+            "num_batches": len(stability_consistencies) + len(transition_accuracies),
         }
+        all_config_results[config_id] = result
 
-        print(f"  {config_id:20s}  consistency={mean_consistency:.4f}  "
-              f"flicker={mean_flicker:.2f}  acc={mean_accuracy:.4f}")
+        stab = f"stab(cons={result['stability_consistency']:.2f} flk={result['stability_flicker']:.1f} acc={result['stability_accuracy']:.2f})"
+        trans = f"trans(acc={result['transition_accuracy']:.2f} pres={result['transition_preservation']:.2f})"
+        print(f"  {config_id:20s}  {stab}  {trans}")
 
     # ------------------------------------------------------------------
     # 4. Save JSON results
@@ -409,44 +503,61 @@ def run_ablation(args: argparse.Namespace) -> None:
     # 5. Comparison plots
     # ------------------------------------------------------------------
     config_ids = list(all_config_results.keys())
-    consistencies = [all_config_results[c]["consistency_score"] for c in config_ids]
-    flicker_rates = [all_config_results[c]["flicker_rate"] for c in config_ids]
-    accuracies = [all_config_results[c]["accuracy"] for c in config_ids]
-
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-
-    # Consistency
-    ax = axes[0]
-    _apply_dark_style(ax, fig)
     x = np.arange(len(config_ids))
-    ax.bar(x, consistencies, color=CB_PALETTE[2])
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+    # Top-left: Stability — Consistency Score
+    ax = axes[0][0]
+    _apply_dark_style(ax, fig)
+    vals = [all_config_results[c]["stability_consistency"] for c in config_ids]
+    ax.bar(x, vals, color=CB_PALETTE[2])
     ax.set_xticks(x)
     ax.set_xticklabels(config_ids, rotation=45, ha="right", fontsize=8)
     ax.set_ylabel("Consistency Score")
-    ax.set_title("Temporal Consistency", fontweight="bold")
+    ax.set_title("Stability: Within-Emotion Consistency", fontweight="bold")
     ax.set_ylim(0, 1.05)
 
-    # Flicker rate
-    ax = axes[1]
+    # Top-right: Stability — Flicker Rate
+    ax = axes[0][1]
     _apply_dark_style(ax, fig)
-    ax.bar(x, flicker_rates, color=CB_PALETTE[5])
+    vals = [all_config_results[c]["stability_flicker"] for c in config_ids]
+    ax.bar(x, vals, color=CB_PALETTE[5])
     ax.set_xticks(x)
     ax.set_xticklabels(config_ids, rotation=45, ha="right", fontsize=8)
     ax.set_ylabel("Flicker Rate (changes / batch)")
-    ax.set_title("Emotion Flicker Rate", fontweight="bold")
+    ax.set_title("Stability: Emotion Flicker Rate", fontweight="bold")
 
-    # Accuracy
-    ax = axes[2]
+    # Bottom-left: Transition — Accuracy
+    ax = axes[1][0]
     _apply_dark_style(ax, fig)
-    ax.bar(x, accuracies, color=CB_PALETTE[0])
+    stab_acc = [all_config_results[c]["stability_accuracy"] for c in config_ids]
+    trans_acc = [all_config_results[c]["transition_accuracy"] for c in config_ids]
+    width = 0.35
+    ax.bar(x - width / 2, stab_acc, width, label="Stability batches", color=CB_PALETTE[0])
+    ax.bar(x + width / 2, trans_acc, width, label="Transition batches", color=CB_PALETTE[1])
     ax.set_xticks(x)
     ax.set_xticklabels(config_ids, rotation=45, ha="right", fontsize=8)
-    ax.set_ylabel("Accuracy")
-    ax.set_title("Per-Frame Accuracy", fontweight="bold")
+    ax.set_ylabel("Per-Frame Accuracy")
+    ax.set_title("Accuracy by Batch Type", fontweight="bold")
     ax.set_ylim(0, 1.05)
+    ax.legend(facecolor="#2e2e4a", edgecolor="#2e2e4a", labelcolor="white", fontsize=8)
+
+    # Bottom-right: Transition Preservation
+    ax = axes[1][1]
+    _apply_dark_style(ax, fig)
+    vals = [all_config_results[c]["transition_preservation"] for c in config_ids]
+    colors = [CB_PALETTE[2] if 0.5 <= v <= 1.5 else CB_PALETTE[5] for v in vals]
+    ax.bar(x, vals, color=colors)
+    ax.axhline(y=1.0, color="white", linestyle="--", alpha=0.5, linewidth=1)
+    ax.set_xticks(x)
+    ax.set_xticklabels(config_ids, rotation=45, ha="right", fontsize=8)
+    ax.set_ylabel("Transition Preservation Ratio")
+    ax.set_title("Transition Preservation (1.0 = ideal)", fontweight="bold")
+    ax.set_ylim(0, 2.1)
 
     fig.suptitle(
-        "Post-Processing Ablation — FER2013 (Temporal Simulation)",
+        "Post-Processing Ablation — Stability + Transition Analysis",
         fontsize=15,
         fontweight="bold",
         color="white",
@@ -457,14 +568,16 @@ def run_ablation(args: argparse.Namespace) -> None:
     # ------------------------------------------------------------------
     # 6. Summary
     # ------------------------------------------------------------------
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 80)
     print("POST-PROCESSING ABLATION SUMMARY")
-    print("=" * 60)
+    print("=" * 80)
+    print(f"  {'Config':20s}  {'Stab.Cons':>9s}  {'Stab.Flk':>8s}  {'Stab.Acc':>8s}  {'Trans.Acc':>9s}  {'Trans.Pres':>10s}")
+    print("  " + "-" * 76)
     for cid in config_ids:
         r = all_config_results[cid]
-        print(f"  {cid:20s}  consistency={r['consistency_score']:.4f}  "
-              f"flicker={r['flicker_rate']:.2f}  acc={r['accuracy']:.4f}")
-    print("=" * 60)
+        print(f"  {cid:20s}  {r['stability_consistency']:9.4f}  {r['stability_flicker']:8.2f}  "
+              f"{r['stability_accuracy']:8.4f}  {r['transition_accuracy']:9.4f}  {r['transition_preservation']:10.4f}")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
