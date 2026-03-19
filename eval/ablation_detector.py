@@ -224,7 +224,10 @@ def run_ablation(args: argparse.Namespace) -> None:
         else:
             report = {}
             accuracy = 0.0
-            latency_stats = {}
+            latency_stats = {
+                "mean_ms": 0, "median_ms": 0, "p95_ms": 0, "p99_ms": 0,
+                "min_ms": 0, "max_ms": 0, "std_ms": 0, "total_samples": 0,
+            }
 
         det_result = {
             "detector": detector,
@@ -249,6 +252,8 @@ def run_ablation(args: argparse.Namespace) -> None:
     # 3. Save JSON results
     # ------------------------------------------------------------------
     out_dir = Path(args.output_dir)
+    ablation_dir = out_dir / "ablation"
+    plots_dir = ablation_dir / "plots"
     results_payload = {
         "study": "detector_ablation",
         "dataset": "FER2013",
@@ -263,7 +268,7 @@ def run_ablation(args: argparse.Namespace) -> None:
             "total_images": total,
         },
     }
-    save_results_json(results_payload, str(out_dir / "ablation_detector.json"))
+    save_results_json(results_payload, str(ablation_dir / "detector.json"))
 
     # ------------------------------------------------------------------
     # 4. Scatter plot: accuracy vs latency
@@ -314,7 +319,7 @@ def run_ablation(args: argparse.Namespace) -> None:
         fontsize=10, loc="lower right",
     )
 
-    _save_fig(fig, str(out_dir / "ablation_detector_comparison.png"))
+    _save_fig(fig, str(plots_dir / "detector_comparison.png"))
 
     # ------------------------------------------------------------------
     # 5. Summary

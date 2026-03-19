@@ -306,31 +306,36 @@ def run_benchmark(args: argparse.Namespace) -> None:
     }
 
     out_dir = Path(args.output_dir)
-    save_results_json(results, str(out_dir / "rafdb_baseline_results.json"))
+    baseline_dir = out_dir / "baseline"
+    plots_dir = baseline_dir / "plots"
+
+    det = args.detector
+    save_results_json(results, str(baseline_dir / f"rafdb_{det}.json"))
 
     # ------------------------------------------------------------------
     # 5. Generate plots
     # ------------------------------------------------------------------
+    det_label = det.capitalize()
     plot_confusion_matrix(
         cm,
         EMOTION_LABELS,
-        title="RAF-DB — Confusion Matrix (DeepFace + RetinaFace)",
-        save_path=str(out_dir / "rafdb_confusion_matrix.png"),
+        title=f"RAF-DB — Confusion Matrix (DeepFace + {det_label})",
+        save_path=str(plots_dir / f"rafdb_{det}_confusion_matrix.png"),
     )
     plot_roc_curves(
         roc_data,
-        title="RAF-DB — ROC Curves (DeepFace + RetinaFace)",
-        save_path=str(out_dir / "rafdb_roc_curves.png"),
+        title=f"RAF-DB — ROC Curves (DeepFace + {det_label})",
+        save_path=str(plots_dir / f"rafdb_{det}_roc_curves.png"),
     )
     plot_per_class_metrics(
         report,
-        title="RAF-DB — Per-Class Precision / Recall / F1",
-        save_path=str(out_dir / "rafdb_per_class_metrics.png"),
+        title=f"RAF-DB — Per-Class P/R/F1 ({det_label})",
+        save_path=str(plots_dir / f"rafdb_{det}_per_class_metrics.png"),
     )
     plot_latency_histogram(
         latencies,
-        title="RAF-DB — Inference Latency Distribution",
-        save_path=str(out_dir / "rafdb_latency_histogram.png"),
+        title=f"RAF-DB — Latency Distribution ({det_label})",
+        save_path=str(plots_dir / f"rafdb_{det}_latency_histogram.png"),
     )
 
     # ------------------------------------------------------------------

@@ -1,0 +1,21 @@
+# Baseline evaluation configuration
+experiment: baseline
+description: "Raw DeepFace evaluation without pipeline enhancements"
+
+datasets:
+  fer2013:
+    path: "eval/datasets/FER2013/test"
+    split: test
+  rafdb:
+    path: "eval/datasets/RAF-DB/DATASET/test"
+    split: test
+
+model:
+  detector: retinaface
+  enforce_detection: false
+  actions: ["emotion"]
+  anti_spoofing: false
+
+output:
+  dir: "eval/results"
+  prefix: ""

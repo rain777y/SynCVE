@@ -304,6 +304,8 @@ def run_ablation(args: argparse.Namespace) -> None:
     # 3. Save JSON results
     # ------------------------------------------------------------------
     out_dir = Path(args.output_dir)
+    ablation_dir = out_dir / "ablation"
+    plots_dir = ablation_dir / "plots"
     results_payload = {
         "study": "preprocessing_ablation",
         "dataset": "FER2013",
@@ -318,7 +320,7 @@ def run_ablation(args: argparse.Namespace) -> None:
             "total_images": total,
         },
     }
-    save_results_json(results_payload, str(out_dir / "ablation_preprocess.json"))
+    save_results_json(results_payload, str(ablation_dir / "preprocess.json"))
 
     # ------------------------------------------------------------------
     # 4. Comparison bar chart
@@ -374,7 +376,7 @@ def run_ablation(args: argparse.Namespace) -> None:
         color="white",
         y=1.02,
     )
-    _save_fig(fig, str(out_dir / "ablation_preprocess_comparison.png"))
+    _save_fig(fig, str(plots_dir / "preprocess_comparison.png"))
 
     # ------------------------------------------------------------------
     # 5. Summary

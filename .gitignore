@@ -78,7 +78,9 @@ dev/
 
 # ---------- Datasets (large files) ----------
 eval/datasets/
-eval/results/
+eval/results/**
+!eval/results/.gitkeep
+!eval/results/experiment_log.jsonl
 eval/cache/
 
 # ---------- Testing ----------

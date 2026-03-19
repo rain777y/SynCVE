@@ -1,0 +1,31 @@
+experiment: ablation_postprocess
+description: "Temporal post-processing parameter study"
+
+dataset: fer2013
+batch_size: 20
+
+configs:
+  raw:
+    ema_alpha: null
+    noise_floor: null
+  ema_0.1:
+    ema_alpha: 0.1
+    noise_floor: null
+  ema_0.2:
+    ema_alpha: 0.2
+    noise_floor: null
+  ema_0.3:
+    ema_alpha: 0.3
+    noise_floor: null
+  nf_0.05:
+    ema_alpha: null
+    noise_floor: 0.05
+  nf_0.10:
+    ema_alpha: null
+    noise_floor: 0.10
+  nf_0.15:
+    ema_alpha: null
+    noise_floor: 0.15
+  ema_0.3_nf_0.10:
+    ema_alpha: 0.3
+    noise_floor: 0.10

@@ -149,35 +149,49 @@ def plot_roc_curves(
     fig, ax = plt.subplots(figsize=(9, 8))
     _apply_dark_style(ax, fig)
 
-    # Per-class curves
+    # Per-class curves — skip classes where AUC is NaN/None
     class_labels = [k for k in roc_data if k not in ("micro_avg", "macro_avg")]
     for idx, label in enumerate(class_labels):
         d = roc_data[label]
         color = CB_PALETTE[idx % len(CB_PALETTE)]
+        auc_val = d.get("auc")
+
+        # Skip classes with undefined AUC (e.g., 0 positive samples)
+        if auc_val is None or (isinstance(auc_val, float) and np.isnan(auc_val)):
+            ax.plot([], [], " ", label=f"{label} (AUC=N/A)")
+            continue
+
         ax.plot(
             d["fpr"],
             d["tpr"],
             color=color,
             linewidth=1.5,
-            label=f'{label} (AUC={d["auc"]:.3f})',
+            label=f'{label} (AUC={auc_val:.3f})',
         )
 
     # Micro-average
     if "micro_avg" in roc_data and "fpr" in roc_data["micro_avg"]:
         d = roc_data["micro_avg"]
-        ax.plot(
-            d["fpr"],
-            d["tpr"],
-            color="#ffffff",
-            linewidth=2.5,
-            linestyle="--",
-            label=f'micro-avg (AUC={d["auc"]:.3f})',
-        )
+        micro_auc = d.get("auc")
+        if micro_auc is not None and not (isinstance(micro_auc, float) and np.isnan(micro_auc)):
+            ax.plot(
+                d["fpr"],
+                d["tpr"],
+                color="#ffffff",
+                linewidth=2.5,
+                linestyle="--",
+                label=f'micro-avg (AUC={micro_auc:.3f})',
+            )
+        else:
+            ax.plot([], [], " ", label="micro-avg (AUC=N/A)")
 
     # Macro-average (just AUC number, no curve)
     if "macro_avg" in roc_data:
         macro_auc = roc_data["macro_avg"]["auc"]
-        ax.plot([], [], " ", label=f"macro-avg AUC={macro_auc:.3f}")
+        if macro_auc is not None and not (isinstance(macro_auc, float) and np.isnan(macro_auc)):
+            ax.plot([], [], " ", label=f"macro-avg AUC={macro_auc:.3f}")
+        else:
+            ax.plot([], [], " ", label="macro-avg AUC=N/A")
 
     # Diagonal reference
     ax.plot([0, 1], [0, 1], color="#555555", linewidth=1, linestyle=":")

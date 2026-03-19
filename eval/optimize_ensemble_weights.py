@@ -441,7 +441,8 @@ def run_optimization(args: argparse.Namespace) -> None:
             "test_images": len(test_samples),
         },
     }
-    save_results_json(results_payload, str(out_dir / "ablation_ensemble.json"))
+    ablation_dir = out_dir / "ablation"
+    save_results_json(results_payload, str(ablation_dir / "ensemble.json"))
 
     # ------------------------------------------------------------------
     # 6. Summary

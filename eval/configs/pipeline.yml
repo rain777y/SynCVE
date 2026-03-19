@@ -1,0 +1,18 @@
+experiment: pipeline_vs_baseline
+description: "Full SynCVE pipeline vs raw DeepFace comparison"
+
+datasets:
+  - fer2013
+  - rafdb
+
+pipeline:
+  preprocessing: full_preprocess
+  ensemble:
+    detectors: [retinaface, mtcnn, centerface]
+    weights:
+      retinaface: 0.50
+      mtcnn: 0.30
+      centerface: 0.20
+  postprocess:
+    ema_alpha: 0.3
+    noise_floor: 0.10

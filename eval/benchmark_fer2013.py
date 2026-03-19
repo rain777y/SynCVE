@@ -244,31 +244,37 @@ def run_benchmark(args: argparse.Namespace) -> None:
     }
 
     out_dir = Path(args.output_dir)
-    save_results_json(results, str(out_dir / "fer2013_baseline_results.json"))
+    baseline_dir = out_dir / "baseline"
+    plots_dir = baseline_dir / "plots"
+
+    # Use detector name in filenames so B0 (opencv) and B1 (retinaface) coexist
+    det = args.detector
+    save_results_json(results, str(baseline_dir / f"fer2013_{det}.json"))
 
     # ------------------------------------------------------------------
     # 5. Generate plots
     # ------------------------------------------------------------------
+    det_label = det.capitalize()
     plot_confusion_matrix(
         cm,
         EMOTION_LABELS,
-        title="FER2013 — Confusion Matrix (DeepFace + RetinaFace)",
-        save_path=str(out_dir / "fer2013_confusion_matrix.png"),
+        title=f"FER2013 — Confusion Matrix (DeepFace + {det_label})",
+        save_path=str(plots_dir / f"fer2013_{det}_confusion_matrix.png"),
     )
     plot_roc_curves(
         roc_data,
-        title="FER2013 — ROC Curves (DeepFace + RetinaFace)",
-        save_path=str(out_dir / "fer2013_roc_curves.png"),
+        title=f"FER2013 — ROC Curves (DeepFace + {det_label})",
+        save_path=str(plots_dir / f"fer2013_{det}_roc_curves.png"),
     )
     plot_per_class_metrics(
         report,
-        title="FER2013 — Per-Class Precision / Recall / F1",
-        save_path=str(out_dir / "fer2013_per_class_metrics.png"),
+        title=f"FER2013 — Per-Class P/R/F1 ({det_label})",
+        save_path=str(plots_dir / f"fer2013_{det}_per_class_metrics.png"),
     )
     plot_latency_histogram(
         latencies,
-        title="FER2013 — Inference Latency Distribution",
-        save_path=str(out_dir / "fer2013_latency_histogram.png"),
+        title=f"FER2013 — Latency Distribution ({det_label})",
+        save_path=str(plots_dir / f"fer2013_{det}_latency_histogram.png"),
     )
 
     # ------------------------------------------------------------------

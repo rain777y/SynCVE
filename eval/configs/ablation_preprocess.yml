@@ -1,0 +1,27 @@
+experiment: ablation_preprocess
+description: "Preprocessing component contribution study"
+
+dataset: fer2013
+detector: retinaface
+
+configs:
+  none:
+    super_resolution: false
+    clahe: false
+    unsharp_mask: false
+  sr_only:
+    super_resolution: true
+    clahe: false
+    unsharp_mask: false
+  clahe_only:
+    super_resolution: false
+    clahe: true
+    unsharp_mask: false
+  sr_clahe:
+    super_resolution: true
+    clahe: true
+    unsharp_mask: false
+  full_preprocess:
+    super_resolution: true
+    clahe: true
+    unsharp_mask: true

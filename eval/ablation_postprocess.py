@@ -386,6 +386,8 @@ def run_ablation(args: argparse.Namespace) -> None:
     # 4. Save JSON results
     # ------------------------------------------------------------------
     out_dir = Path(args.output_dir)
+    ablation_dir = out_dir / "ablation"
+    plots_dir = ablation_dir / "plots"
     results_payload = {
         "study": "postprocessing_ablation",
         "dataset": "FER2013",
@@ -401,7 +403,7 @@ def run_ablation(args: argparse.Namespace) -> None:
             "limit": args.limit,
         },
     }
-    save_results_json(results_payload, str(out_dir / "ablation_postprocess.json"))
+    save_results_json(results_payload, str(ablation_dir / "postprocess.json"))
 
     # ------------------------------------------------------------------
     # 5. Comparison plots
@@ -450,7 +452,7 @@ def run_ablation(args: argparse.Namespace) -> None:
         color="white",
         y=1.02,
     )
-    _save_fig(fig, str(out_dir / "ablation_postprocess_comparison.png"))
+    _save_fig(fig, str(plots_dir / "postprocess_comparison.png"))
 
     # ------------------------------------------------------------------
     # 6. Summary
