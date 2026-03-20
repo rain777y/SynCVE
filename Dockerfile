@@ -24,9 +24,33 @@ WORKDIR /app
 RUN pip install --no-cache-dir \
     torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
-# --- Layer 2: Pip dependencies (changes on requirements.txt update) ---
+# --- Layer 2: Pip dependencies (split to avoid protobuf conflict) ---
+# streamlit requires protobuf<5 but google-genai requires protobuf>=5
+# Solution: install core deps inline, skip streamlit (only needed for eval dashboard)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir \
+    "numpy>=1.22.0,<2.0" \
+    "pandas>=2.0,<3.0" \
+    "requests>=2.28,<3.0" \
+    "python-dotenv>=1.0,<2.0" \
+    "pydantic>=2.0,<3.0" \
+    "PyYAML>=6.0,<7.0" \
+    "setuptools<81" \
+    "tensorflow==2.10.1" \
+    "opencv-python>=4.8,<5.0" \
+    "Pillow>=10.0,<12.0" \
+    "deepface>=0.0.99,<0.1.0" \
+    "mtcnn==0.1.1" \
+    "retina-face>=0.0.14,<0.0.18" \
+    "Flask>=3.0,<4.0" \
+    "flask-cors>=4.0,<5.0" \
+    "flask-limiter>=3.0,<4.0" \
+    "gunicorn>=21.2,<23.0" \
+    "google-genai>=1.65,<2.0" \
+    "supabase>=2.5,<3.0" \
+    "scikit-learn>=1.3,<2.0" \
+    "matplotlib>=3.7,<4.0" \
+    "tqdm>=4.65,<5.0"
 
 # --- Layer 3: Application code (changes most often) ---
 COPY settings.yml .

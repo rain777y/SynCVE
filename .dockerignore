@@ -29,6 +29,5 @@ tmp/
 .coverage
 .pytest_cache/
 htmlcov/
-docker/
 Dockerfile
 docker-compose.yml
