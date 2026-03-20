@@ -35,6 +35,7 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from eval._gpu_init import init_gpu; init_gpu()  # must run before TF/DeepFace
 
 import cv2
 import numpy as np

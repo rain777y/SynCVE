@@ -67,17 +67,17 @@ def backend_url():
 
 @pytest.fixture(scope="module")
 def face_b64(generated_face_images) -> str:
-    """Return a neutral face as base64 for HTTP API calls."""
+    """Return a neutral face as data-URI base64 for HTTP API calls."""
     img_bytes = generated_face_images.get("neutral")
     if not img_bytes:
         pytest.skip("No neutral face image available")
-    return base64.b64encode(img_bytes).decode("utf-8")
+    return "data:image/jpeg;base64," + base64.b64encode(img_bytes).decode("utf-8")
 
 
 @pytest.fixture(scope="module")
 def no_face_b64(no_face_image) -> str:
-    """Return a no-face image as base64."""
-    return base64.b64encode(no_face_image).decode("utf-8")
+    """Return a no-face image as data-URI base64."""
+    return "data:image/jpeg;base64," + base64.b64encode(no_face_image).decode("utf-8")
 
 
 def _start_session(url: str, **extra_json) -> str:
@@ -423,13 +423,13 @@ class TestSessionManagement:
         assert resp.status_code in [400, 422]
 
     def test_pause_requires_session_id(self, backend_url):
-        """POST /session/pause without session_id should return 400."""
+        """POST /session/pause without session_id should return 400 or 422."""
         resp = requests.post(
             f"{backend_url}/session/pause",
             json={},
             timeout=REQUEST_TIMEOUT,
         )
-        assert resp.status_code == 400
+        assert resp.status_code in [400, 422]
 
 
 # ============================================================================

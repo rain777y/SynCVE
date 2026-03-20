@@ -64,7 +64,13 @@ export function useDetectionLoop(captureFrame, serviceEndpoint, sessionIdRef, in
 
       if (data.results && data.results.length > 0) {
         const result = data.results[0];
-        setEmotionData(result.emotion);
+        // Prefer EMA-smoothed scores for smoother progress bars
+        const displayEmotions = data.smoothed_emotions
+          ? Object.fromEntries(
+              Object.entries(data.smoothed_emotions).map(([k, v]) => [k, v * 100])
+            )
+          : result.emotion;
+        setEmotionData(displayEmotions);
         setDominantEmotion(result.dominant_emotion);
         setConfidence(Math.max(...Object.values(result.emotion)));
         setDetectionCount(prev => prev + 1);

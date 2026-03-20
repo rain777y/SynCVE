@@ -1,6 +1,12 @@
 # SynCVE Python Dependencies
-# Install: pip install -r requirements.txt
-# Env:     conda env create -f environment.yml (recommended)
+#
+# Setup (recommended):
+#   conda env create -f environment.yml
+#   conda activate SynCVE
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+# The conda env provides: Python 3.10, CUDA 11.8, cuDNN 8.9
+# PyTorch CUDA must be installed separately (special index URL)
 
 # --- Core ---
 numpy>=1.22.0,<2.0            # TF 2.10 incompatible with NumPy 2.x
@@ -12,8 +18,9 @@ PyYAML>=6.0,<7.0
 setuptools<81                  # mtcnn requires pkg_resources (removed in 81+)
 
 # --- Deep Learning ---
-tensorflow==2.10.1             # last version with CUDA 11.8 Windows support
-# torch/torchvision installed via conda (pytorch channel) — see environment.yml
+tensorflow==2.10.1             # last version with native Windows GPU (CUDA 11.8)
+# torch + torchvision: install separately with CUDA support:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
 # --- Computer Vision ---
 opencv-python>=4.8,<5.0
@@ -26,7 +33,7 @@ retina-face>=0.0.14,<0.0.18   # DeepFace detector plugin
 Flask>=3.0,<4.0
 flask-cors>=4.0,<5.0
 flask-limiter>=3.0,<4.0
-gunicorn>=21.2,<23.0           # production WSGI server (CLI only)
+gunicorn>=21.2,<23.0           # production WSGI server (Linux only)
 
 # --- GenAI & Storage ---
 google-genai>=1.65,<2.0        # unified SDK (supports API key + Vertex AI)

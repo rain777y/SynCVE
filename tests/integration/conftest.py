@@ -33,23 +33,25 @@ def backend_url():
 
 @pytest.fixture(scope="session")
 def test_face_image_base64():
-    """Load a real test face image as base64."""
+    """Load a real test face image as data-URI base64."""
     # Try generated images first, then static fallback
     image_paths = [
         ARTIFACTS_DIR / "images" / "neutral_face.jpg",
         ARTIFACTS_DIR / "images" / "happy_face.jpg",
+        ARTIFACTS_DIR / "images" / "e2e_neutral_face.jpg",
+        ARTIFACTS_DIR / "images" / "e2e_happy_face.jpg",
         ARTIFACTS_DIR / "images" / "test_face_basic.jpg",
     ]
     for path in image_paths:
         if path.exists():
             with open(path, "rb") as f:
-                return base64.b64encode(f.read()).decode("utf-8")
+                return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode("utf-8")
     pytest.skip("No test face image available. Run create_test_images.py first.")
 
 
 @pytest.fixture
 def no_face_image_base64():
-    """Image with no face for negative testing."""
+    """Image with no face for negative testing (data-URI)."""
     paths = [
         ARTIFACTS_DIR / "images" / "no_face.jpg",
         ARTIFACTS_DIR / "images" / "test_no_face.jpg",
@@ -57,7 +59,7 @@ def no_face_image_base64():
     for path in paths:
         if path.exists():
             with open(path, "rb") as f:
-                return base64.b64encode(f.read()).decode("utf-8")
+                return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode("utf-8")
     # Create a simple no-face image on the fly
     from PIL import Image
     import io
@@ -65,7 +67,7 @@ def no_face_image_base64():
     img = Image.new("RGB", (640, 480), color=(0, 100, 200))
     buf = io.BytesIO()
     img.save(buf, format="JPEG")
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
 @pytest.fixture

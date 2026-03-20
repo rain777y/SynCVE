@@ -309,7 +309,7 @@ class TestFullSessionLifecycle:
                 if not img_bytes:
                     continue
 
-                b64 = base64.b64encode(img_bytes).decode("utf-8")
+                b64 = "data:image/jpeg;base64," + base64.b64encode(img_bytes).decode("utf-8")
                 result = service.analyze(
                     img_path=b64,
                     actions=["emotion"],
@@ -408,7 +408,7 @@ class TestFullSessionLifecycle:
                 if not img_bytes:
                     continue
 
-                b64 = base64.b64encode(img_bytes).decode("utf-8")
+                b64 = "data:image/jpeg;base64," + base64.b64encode(img_bytes).decode("utf-8")
                 analysis = service.analyze(
                     img_path=b64,
                     actions=["emotion"],
@@ -693,7 +693,7 @@ class TestDeepFaceRealAnalysis:
         if not img_bytes:
             pytest.skip("No happy face image")
 
-        b64 = base64.b64encode(img_bytes).decode("utf-8")
+        b64 = "data:image/jpeg;base64," + base64.b64encode(img_bytes).decode("utf-8")
         result = service.analyze(
             img_path=b64,
             actions=["emotion"],
@@ -718,7 +718,7 @@ class TestDeepFaceRealAnalysis:
         """Analyze a no-face image; should handle gracefully."""
         from src.backend import service
 
-        b64 = base64.b64encode(no_face_image).decode("utf-8")
+        b64 = "data:image/jpeg;base64," + base64.b64encode(no_face_image).decode("utf-8")
         result = service.analyze(
             img_path=b64,
             actions=["emotion"],
@@ -740,7 +740,7 @@ class TestDeepFaceRealAnalysis:
         if not img_bytes:
             pytest.skip("No neutral face image")
 
-        b64 = base64.b64encode(img_bytes).decode("utf-8")
+        b64 = "data:image/jpeg;base64," + base64.b64encode(img_bytes).decode("utf-8")
         result = service.analyze(
             img_path=b64,
             actions=["emotion"],

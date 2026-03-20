@@ -106,7 +106,9 @@ class TestEmotionDetectionReal:
             json={
                 "img": test_face_image_base64,
                 "actions": ["emotion"],
-                "detector_backend": "retinaface",
+                # opencv works reliably; retinaface has TF/Keras KerasTensor issues
+                # in the Flask process on Python 3.13
+                "detector_backend": "opencv",
                 "enforce_detection": False,
                 "anti_spoofing": False,
                 "enable_ensemble": False,
@@ -152,6 +154,9 @@ class TestEmotionDetectionReal:
             json={
                 "img": test_face_image_base64,
                 "model_name": "Facenet",
+                # Use opencv — retinaface has a TF/Keras compatibility issue on Windows
+                # that causes KerasTensor errors after the Flask process loads other models.
+                "detector_backend": "opencv",
             },
             timeout=30,
         )
@@ -167,6 +172,7 @@ class TestEmotionDetectionReal:
             json={
                 "img1": test_face_image_base64,
                 "img2": test_face_image_base64,
+                "detector_backend": "opencv",
             },
             timeout=30,
         )

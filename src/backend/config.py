@@ -149,6 +149,15 @@ class GPUConfig:
 
 
 @dataclass(frozen=True)
+class PreprocessConfig:
+    enable_sr: bool = True
+    sr_min_size: int = 256
+    enable_clahe: bool = True
+    enable_unsharp: bool = True
+    adaptive_threshold: int = 128  # skip CLAHE+unsharp when original min dim < this
+
+
+@dataclass(frozen=True)
 class DeepFaceConfig:
     detector_backend: str = "retinaface"
     model_name: str = "Facenet"
@@ -157,10 +166,10 @@ class DeepFaceConfig:
     confidence_threshold: float = 0.1
     enable_ensemble: bool = True
     ensemble_detectors: list = field(
-        default_factory=lambda: ["retinaface", "mtcnn", "centerface"]
+        default_factory=lambda: ["retinaface", "mtcnn"]
     )
     ensemble_weights: dict = field(
-        default_factory=lambda: {"retinaface": 0.50, "mtcnn": 0.30, "centerface": 0.20}
+        default_factory=lambda: {"retinaface": 0.50, "mtcnn": 0.50}
     )
 
 
@@ -186,7 +195,7 @@ class GeminiConfig:
     max_retries: int = 3
     retry_base_delay: float = 1.0
     report_mode: str = "fast"           # "fast" = structured data only, "full" = fast + AI image
-    noise_floor: float = 0.10
+    noise_floor: float = 0.0
     keyframe_limit: int = 4
     visual_aspect_ratio: str = "16:9"
     visual_style_preset: str = "futuristic"
@@ -194,7 +203,7 @@ class GeminiConfig:
 
 @dataclass(frozen=True)
 class TemporalConfig:
-    ema_alpha: float = 0.3
+    ema_alpha: float = 0.2
     transition_threshold: float = 0.15
     volatility_window: int = 10
     fps_estimate: float = 0.5
@@ -214,6 +223,7 @@ class AppConfig:
     gemini: GeminiConfig
     client: ClientConfig = field(default_factory=ClientConfig)
     temporal: TemporalConfig = field(default_factory=TemporalConfig)
+    preprocess: PreprocessConfig = field(default_factory=PreprocessConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -246,8 +256,8 @@ def load_config() -> AppConfig:
 
     # Ensemble config
     ens = _get(cfg, "deepface", "ensemble", default={})
-    ens_detectors = _get(ens, "detectors", default=["retinaface", "mtcnn", "centerface"])
-    ens_weights = _get(ens, "weights", default={"retinaface": 0.50, "mtcnn": 0.30, "centerface": 0.20})
+    ens_detectors = _get(ens, "detectors", default=["retinaface", "mtcnn"])
+    ens_weights = _get(ens, "weights", default={"retinaface": 0.50, "mtcnn": 0.50})
 
     # Fallback models can be a list or comma-separated string
     fallback_raw = _get(cfg, "gemini", "fallback_image_models", default=[])
@@ -296,7 +306,7 @@ def load_config() -> AppConfig:
             max_retries=int(_get(cfg, "gemini", "max_retries", default=3)),
             retry_base_delay=float(_get(cfg, "gemini", "retry_base_delay", default=1.0)),
             report_mode=_get(cfg, "report", "mode", default="fast"),
-            noise_floor=float(_get(cfg, "report", "noise_floor", default=0.10)),
+            noise_floor=float(_get(cfg, "report", "noise_floor", default=0.0)),
             keyframe_limit=int(_get(cfg, "report", "keyframe_limit", default=4)),
             visual_aspect_ratio=_get(cfg, "report", "visual_aspect_ratio", default="16:9"),
             visual_style_preset=_get(cfg, "report", "visual_style_preset", default="futuristic"),
@@ -305,10 +315,17 @@ def load_config() -> AppConfig:
             detection_interval=int(_get(cfg, "client", "detection_interval", default=2000)),
         ),
         temporal=TemporalConfig(
-            ema_alpha=float(_get(cfg, "temporal", "ema_alpha", default=0.3)),
+            ema_alpha=float(_get(cfg, "temporal", "ema_alpha", default=0.2)),
             transition_threshold=float(_get(cfg, "temporal", "transition_threshold", default=0.15)),
             volatility_window=int(_get(cfg, "temporal", "volatility_window", default=10)),
             fps_estimate=float(_get(cfg, "temporal", "fps_estimate", default=0.5)),
+        ),
+        preprocess=PreprocessConfig(
+            enable_sr=bool(_get(cfg, "preprocess", "enable_sr", default=True)),
+            sr_min_size=int(_get(cfg, "preprocess", "sr_min_size", default=256)),
+            enable_clahe=bool(_get(cfg, "preprocess", "enable_clahe", default=True)),
+            enable_unsharp=bool(_get(cfg, "preprocess", "enable_unsharp", default=True)),
+            adaptive_threshold=int(_get(cfg, "preprocess", "adaptive_threshold", default=128)),
         ),
     )
 

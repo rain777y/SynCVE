@@ -129,8 +129,8 @@ class TestNormalizeWeights:
         weights = _normalize_weights(["retinaface", "mtcnn"])
         assert len(weights) == 2
         assert abs(sum(weights) - 1.0) < 1e-6
-        # retinaface should have higher weight
-        assert weights[0] > weights[1]
+        # retinaface and mtcnn have equal weight (data-driven from ablation)
+        assert abs(weights[0] - weights[1]) < 1e-6
 
     def test_unknown_detectors_get_equal_weight(self):
         from src.backend.service import _normalize_weights

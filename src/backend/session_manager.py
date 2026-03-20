@@ -38,6 +38,27 @@ from src.backend.report_generator import (  # noqa: F401
 logger = Logger()
 
 
+def _to_json_safe(obj):
+    """Recursively convert numpy scalars/arrays to Python native types for JSON serialization."""
+    try:
+        import numpy as _np
+        if isinstance(obj, _np.integer):
+            return int(obj)
+        if isinstance(obj, _np.floating):
+            return float(obj)
+        if isinstance(obj, _np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, _np.bool_):
+            return bool(obj)
+    except ImportError:
+        pass
+    if isinstance(obj, dict):
+        return {k: _to_json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_json_safe(v) for v in obj]
+    return obj
+
+
 # ---------------------------------------------------------------------------
 # Backward-compatible config constants accessed as module attributes
 # (e.g. ``session_manager.EMOTION_REPORT_KEYFRAME_LIMIT`` in routes.py).
@@ -148,7 +169,7 @@ def persist_aggregate_snapshot(session_id: str, metrics: Dict[str, Any]) -> None
     if not supabase or not metrics:
         return
     try:
-        payload = {
+        payload = _to_json_safe({
             "session_id": session_id,
             "sample_count": metrics.get("samples"),
             "averages": metrics.get("averages"),
@@ -159,7 +180,7 @@ def persist_aggregate_snapshot(session_id: str, metrics: Dict[str, Any]) -> None
             "peak_emotion": metrics.get("peak_emotion"),
             "peak_score": metrics.get("peak_score"),
             "noise_floor": metrics.get("noise_floor"),
-        }
+        })
         supabase.table("session_aggregates").insert(payload).execute()
     except Exception as e:
         logger.warn(f"Failed to persist aggregate snapshot: {e}")
@@ -292,15 +313,19 @@ def stop_session(session_id: str) -> Dict[str, Any]:
     cfg = get_config().gemini
 
     try:
+        # Capture temporal summary BEFORE cleanup destroys the analyzer
+        temporal_summary = get_temporal_summary(session_id)
+
         report = generate_report(session_id)
 
-        update_payload = {
+        update_payload = _to_json_safe({
             "ended_at": datetime.now(timezone.utc).isoformat(),
             "status": "completed",
             "summary": report.get("summary", ""),
             "recommendations": report.get("recommendations", ""),
             "last_event_at": datetime.now(timezone.utc).isoformat(),
-        }
+            "temporal_summary": temporal_summary,
+        })
 
         supabase.table("sessions").update(update_payload).eq("id", session_id).execute()
         _record_session_event(session_id, "completed", reason="stop endpoint")
@@ -383,13 +408,14 @@ def pause_session(session_id: str) -> Dict[str, Any]:
         except Exception as e:
             logger.warn(f"Could not fetch existing session metadata: {e}")
 
-        merged_meta = {**existing_meta, "pause_report": report_entry}
-        update_payload = {
+        merged_meta = _to_json_safe({**existing_meta, "pause_report": report_entry})
+        update_payload = _to_json_safe({
             "status": "paused",
             "metadata": merged_meta,
             "summary": fast_result.get("text_summary", ""),
             "last_event_at": datetime.now(timezone.utc).isoformat(),
-        }
+            "temporal_summary": fast_result.get("temporal"),
+        })
         supabase.table("sessions").update(update_payload).eq("id", session_id).execute()
         _record_session_event(
             session_id, "paused",
@@ -520,16 +546,17 @@ def log_data(
             "metadata": metadata_payload,
         })
 
-        # Feed to temporal analyzer
+        # Feed to temporal analyzer and capture smoothed scores
+        smoothed_emotions = None
         analyzer = _temporal_analyzers.get(session_id)
         if analyzer and emotions_data:
-            analyzer.add_frame(emotions_data)
+            smoothed_emotions = analyzer.add_frame(emotions_data)
 
         if supabase:
-            vision_payload = {
+            vision_payload = _to_json_safe({
                 **payload,
                 "raw_payload": payload_root if isinstance(payload_root, dict) else {"result": str(payload_root)},
-            }
+            })
             supabase.table("vision_samples").insert(vision_payload).execute()
             try:
                 supabase.table("sessions").update({
@@ -539,7 +566,10 @@ def log_data(
                 logger.warn(f"Could not update session heartbeat: {e}")
 
         status = "logged" if supabase else "cached_only"
-        return {"status": status, "frame_ref": metadata_payload.get("frame_ref")}
+        result = {"status": status, "frame_ref": metadata_payload.get("frame_ref")}
+        if smoothed_emotions:
+            result["smoothed_emotions"] = smoothed_emotions
+        return result
 
     except Exception as e:
         logger.error(f"Error logging data: {e}")

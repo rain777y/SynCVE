@@ -330,10 +330,10 @@ class TestAPIContractRegression:
         )
         assert resp.status_code == 400
 
-        # Invalid action
+        # Invalid action — must use a valid data-URI so image check passes, then Pydantic rejects action
         resp = requests.post(
             f"{backend_url}/analyze",
-            json={"img": "placeholder", "actions": ["invalid_action"]},
+            json={"img": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARC", "actions": ["invalid_action"]},
             timeout=10,
         )
         assert resp.status_code == 422

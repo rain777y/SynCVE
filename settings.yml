@@ -1,6 +1,13 @@
 # SynCVE Application Settings (tracked in git)
 # Secrets (API keys) go in .env (gitignored)
 
+preprocess:
+  enable_sr: true
+  sr_min_size: 256
+  enable_clahe: true
+  enable_unsharp: true
+  adaptive_threshold: 128          # skip CLAHE+unsharp when original min dim < this
+
 server:
   host: "0.0.0.0"
   port: 5005
@@ -20,7 +27,10 @@ client:
   detection_interval: 2000       # ms, frontend capture rate
 
 deepface:
-  detector_backend: "retinaface"
+  # opencv is used instead of retinaface/mtcnn because Keras-based detectors
+  # have a TF/Keras KerasTensor compatibility issue on Python 3.13 in the
+  # Flask server context (they work in fresh processes but not in Flask).
+  detector_backend: "opencv"
   model_name: "Facenet"
   distance_metric: "cosine"
   anti_spoofing: true
@@ -28,13 +38,11 @@ deepface:
   ensemble:
     enabled: true
     detectors:
-      - retinaface
-      - mtcnn
-      - centerface
+      - opencv
+      - ssd
     weights:
-      retinaface: 0.50
-      mtcnn: 0.30
-      centerface: 0.20
+      opencv: 0.60
+      ssd: 0.40
 
 gemini:
   text_model: "gemini-2.5-flash"
@@ -48,13 +56,13 @@ gemini:
 
 report:
   mode: "fast"                 # "fast" = structured JSON only, "full" = fast + AI image
-  noise_floor: 0.10
+  noise_floor: 0.0
   keyframe_limit: 4
   visual_aspect_ratio: "16:9"
   visual_style_preset: "futuristic"
 
 temporal:
-  ema_alpha: 0.3               # EMA smoothing factor (0=full memory, 1=raw)
+  ema_alpha: 0.2               # data-driven optimal (ablation: 0.2 > 0.3, see eval/reports/)
   transition_threshold: 0.15   # min score delta to register an emotion transition
   volatility_window: 10        # sliding window size for std dev calculation
   fps_estimate: 0.5            # frames per second for duration conversion

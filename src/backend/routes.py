@@ -41,6 +41,23 @@ def make_error_response(message: str, status_code: int = 500, error_id: str = No
     return {"error": message, "error_id": error_id}, status_code
 
 
+def _pydantic_errors(ve) -> list:
+    """Return Pydantic v2 validation errors as a JSON-serializable list.
+
+    Pydantic v2's ve.errors() includes a ``ctx`` dict that may contain
+    raw Exception objects (e.g. ValueError), which Flask's JSON encoder
+    cannot serialize.  We strip those out here.
+    """
+    safe = []
+    for err in ve.errors(include_url=False):
+        entry = {k: v for k, v in err.items() if k != "ctx"}
+        if "ctx" in err:
+            ctx = {ck: str(cv) for ck, cv in err["ctx"].items()}
+            entry["ctx"] = ctx
+        safe.append(entry)
+    return safe
+
+
 def _deepface_cfg():
     """Shorthand accessor for DeepFace config defaults."""
     return get_config().deepface
@@ -169,8 +186,6 @@ def represent():
         max_faces=input_args.get("max_faces"),
     )
 
-    logger.debug(obj)
-
     return obj
 
 
@@ -201,8 +216,6 @@ def verify():
         anti_spoofing=input_args.get("anti_spoofing", False),
     )
 
-    logger.debug(verification)
-
     return verification
 
 
@@ -232,7 +245,7 @@ def analyze():
             session_id=input_args.get("session_id"),
         )
     except ValidationError as ve:
-        return {"error": "Invalid request parameters", "details": ve.errors()}, 422
+        return {"error": "Invalid request parameters", "details": _pydantic_errors(ve)}, 422
 
     demographies = service.analyze(
         img_path=img,
@@ -254,6 +267,9 @@ def analyze():
                 logger.warn(f"Session log failed for {session_id}: {log_result}")
                 if isinstance(demographies, dict):
                     demographies.setdefault("logging_status", log_result)
+            elif isinstance(log_result, dict) and log_result.get("smoothed_emotions"):
+                if isinstance(demographies, dict):
+                    demographies["smoothed_emotions"] = log_result["smoothed_emotions"]
         except Exception as e:
             logger.error(f"Failed to log session data: {e}")
     else:
@@ -278,7 +294,7 @@ def start_session():
     try:
         validated = SessionStartRequest(**input_args)
     except ValidationError as ve:
-        return {"error": "Invalid request parameters", "details": ve.errors()}, 422
+        return {"error": "Invalid request parameters", "details": _pydantic_errors(ve)}, 422
 
     result = session_manager.start_session(user_id=validated.user_id, metadata=validated.metadata)
     if "error" in result:
@@ -296,7 +312,7 @@ def stop_session():
     try:
         validated = SessionStopRequest(**input_args)
     except ValidationError as ve:
-        return {"error": "Invalid request parameters", "details": ve.errors()}, 422
+        return {"error": "Invalid request parameters", "details": _pydantic_errors(ve)}, 422
 
     result = session_manager.stop_session(validated.session_id)
     if "error" in result:
@@ -314,7 +330,7 @@ def pause_session():
     try:
         validated = SessionStopRequest(**input_args)
     except ValidationError as ve:
-        return {"error": "Invalid request parameters", "details": ve.errors()}, 422
+        return {"error": "Invalid request parameters", "details": _pydantic_errors(ve)}, 422
 
     result = session_manager.pause_session(validated.session_id)
     if "error" in result:
@@ -362,7 +378,7 @@ def generate_emotion_report():
     try:
         validated = ReportRequest(**input_args)
     except ValidationError as ve:
-        return {"error": "Invalid request parameters", "details": ve.errors()}, 422
+        return {"error": "Invalid request parameters", "details": _pydantic_errors(ve)}, 422
 
     try:
         result = session_manager.generate_emotion_report(
@@ -393,7 +409,7 @@ def generate_visual_report():
     try:
         validated = VisualReportRequest(**input_args)
     except ValidationError as ve:
-        return {"error": "Invalid request parameters", "details": ve.errors()}, 422
+        return {"error": "Invalid request parameters", "details": _pydantic_errors(ve)}, 422
 
     try:
         result = session_manager.generate_visual_report_v3(

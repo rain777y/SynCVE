@@ -2,7 +2,39 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import SessionReport from '../components/SessionReport';
 import './History.css';
+
+/**
+ * Build a report prop object from a completed/paused session's persisted data.
+ * Returns null if no temporal or report data is available (text-only fallback).
+ */
+const buildReportFromSession = (session) => {
+    const temporal = session.temporal_summary;
+    const pauseReport = session.metadata?.pause_report;
+
+    // Prefer pause_report (has full metrics + rankings)
+    if (pauseReport) {
+        return {
+            ...pauseReport,
+            temporal: temporal || pauseReport.temporal,
+        };
+    }
+
+    // Build minimal report from temporal_summary alone
+    if (temporal) {
+        return {
+            text_summary: session.summary || 'Session completed.',
+            temporal,
+            metrics: { samples: temporal.frame_count },
+            stats_summary: {},
+            emotion_ranking: [],
+            emotion_timeline: [],
+        };
+    }
+
+    return null;
+};
 
 const History = () => {
     const { user, isAuthenticated, signOut, loading: authLoading } = useAuth();
@@ -22,9 +54,6 @@ const History = () => {
 
         const fetchHistory = async () => {
             try {
-                // In a real app, we'd pass user.id to filter.
-                // Since our generic backend supports query param 'user_id', we pass if available.
-                // Or just fetch all if user filtering isn't strict yet.
                 const url = new URL(`${serviceEndpoint}/session/history`);
                 if (user?.id) {
                     url.searchParams.append('user_id', user.id);
@@ -83,9 +112,11 @@ const History = () => {
 
     if (authLoading) return <div className="loading-container"><div className="spinner"></div></div>;
 
+    const selectedReport = selectedSession ? buildReportFromSession(selectedSession) : null;
+
     return (
         <div className="history-page">
-            {/* Navigation - Reusing pattern from Home.js */}
+            {/* Navigation */}
             <nav className="history-nav">
                 <div className="nav-content">
                     <div className="nav-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
@@ -144,6 +175,11 @@ const History = () => {
                                     {session.summary || "No summary available."}
                                 </div>
                                 <div className="session-footer">
+                                    {session.temporal_summary?.stability_score != null && (
+                                        <span className="stability-badge">
+                                            Stability: {(session.temporal_summary.stability_score * 100).toFixed(0)}%
+                                        </span>
+                                    )}
                                     <span>View report &rarr;</span>
                                 </div>
                             </div>
@@ -155,48 +191,53 @@ const History = () => {
             {/* Session Detail Modal */}
             {selectedSession && (
                 <div className="modal-overlay" onClick={closeModal}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                    <div className="modal-content modal-content-wide" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3 className="modal-title">Session Report</h3>
+                            <span className="modal-date">{formatDate(selectedSession.created_at)}</span>
                             <button className="close-btn" onClick={closeModal}>&times;</button>
                         </div>
                         <div className="modal-body">
-                            <div className="detail-section">
-                                <h3>📊 Summary</h3>
-                                <p style={{ lineHeight: '1.6', color: 'var(--text-secondary)' }}>
-                                    {selectedSession.summary || "No summary generated for this session."}
-                                </p>
-                            </div>
+                            {selectedReport ? (
+                                <SessionReport report={selectedReport} onResume={null} onStop={null} />
+                            ) : (
+                                /* Text-only fallback for older sessions without temporal data */
+                                <>
+                                    <div className="detail-section">
+                                        <h3>Summary</h3>
+                                        <p style={{ lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+                                            {selectedSession.summary || "No summary generated for this session."}
+                                        </p>
+                                    </div>
 
-                            <div className="detail-section">
-                                <h3>💡 Recommendations</h3>
-                                <div className="recommendation-list">
-                                    {/* Handle text or JSON recommendations */}
-                                    {selectedSession.recommendations ? (
-                                        // Simple heuristic to split text if it's not a JSON list
-                                        // Modify based on actual Gemini output. Assuming text for now.
-                                        <div>
-                                            {selectedSession.recommendations.split('\n').map((line, i) => {
-                                                const trimmed = line.trim();
-                                                if (!trimmed) return null;
-                                                return <p key={i} style={{ marginBottom: '0.5rem' }}>{trimmed}</p>;
-                                            })}
+                                    <div className="detail-section">
+                                        <h3>Recommendations</h3>
+                                        <div className="recommendation-list">
+                                            {selectedSession.recommendations ? (
+                                                <div>
+                                                    {selectedSession.recommendations.split('\n').map((line, i) => {
+                                                        const trimmed = line.trim();
+                                                        if (!trimmed) return null;
+                                                        return <p key={i} style={{ marginBottom: '0.5rem' }}>{trimmed}</p>;
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p>No recommendations available.</p>
+                                            )}
                                         </div>
-                                    ) : (
-                                        <p>No recommendations available.</p>
-                                    )}
-                                </div>
-                            </div>
+                                    </div>
 
-                            <div className="detail-section" style={{ marginBottom: 0 }}>
-                                <h3>🕒 Details</h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem' }}>
-                                    <div><strong>Started:</strong> {formatDate(selectedSession.created_at)}</div>
-                                    <div><strong>Ended:</strong> {selectedSession.ended_at ? formatDate(selectedSession.ended_at) : 'Ongoing'}</div>
-                                    <div><strong>Status:</strong> <span style={{ textTransform: 'capitalize' }}>{selectedSession.status}</span></div>
-                                    <div><strong>ID:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedSession.id.slice(0, 8)}...</span></div>
-                                </div>
-                            </div>
+                                    <div className="detail-section" style={{ marginBottom: 0 }}>
+                                        <h3>Details</h3>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem' }}>
+                                            <div><strong>Started:</strong> {formatDate(selectedSession.created_at)}</div>
+                                            <div><strong>Ended:</strong> {selectedSession.ended_at ? formatDate(selectedSession.ended_at) : 'Ongoing'}</div>
+                                            <div><strong>Status:</strong> <span style={{ textTransform: 'capitalize' }}>{selectedSession.status}</span></div>
+                                            <div><strong>ID:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedSession.id.slice(0, 8)}...</span></div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

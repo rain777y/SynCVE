@@ -6,6 +6,16 @@ import sys
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
+# Ensure conda env DLLs (cuDNN, CUDA) are discoverable on Windows
+if sys.platform == "win32":
+    _conda_prefix = os.environ.get("CONDA_PREFIX", "")
+    if _conda_prefix:
+        _dll_dir = os.path.join(_conda_prefix, "Library", "bin")
+        if os.path.isdir(_dll_dir):
+            os.environ["PATH"] = _dll_dir + os.pathsep + os.environ.get("PATH", "")
+            if hasattr(os, "add_dll_directory"):
+                os.add_dll_directory(_dll_dir)
+
 # Load config: settings from settings.yml, secrets from .env
 from src.backend.config import get_config
 
@@ -43,7 +53,10 @@ else:
     print(f"[WARN] No GPU detected, CPU mode (threads={cfg.gpu.omp_num_threads})")
 
 # Flask app
+import json as _json
+import numpy as _np
 from flask import Flask
+from flask.json.provider import DefaultJSONProvider
 from flask_cors import CORS
 from deepface import DeepFace
 from src.backend.routes import blueprint
@@ -52,8 +65,25 @@ from deepface.commons.logger import Logger
 logger = Logger()
 
 
+class _NumpyJSONProvider(DefaultJSONProvider):
+    """Flask JSON provider that serializes numpy scalars and arrays."""
+    @staticmethod
+    def default(o):
+        if isinstance(o, _np.integer):
+            return int(o)
+        if isinstance(o, _np.floating):
+            return float(o)
+        if isinstance(o, _np.ndarray):
+            return o.tolist()
+        if isinstance(o, _np.bool_):
+            return bool(o)
+        return DefaultJSONProvider.default(o)
+
+
 def create_app():
     app = Flask(__name__)
+    app.json_provider_class = _NumpyJSONProvider
+    app.json = _NumpyJSONProvider(app)
     CORS(app, origins=cfg.server.cors_origins)
     app.config["MAX_CONTENT_LENGTH"] = cfg.server.max_content_length
 
@@ -89,7 +119,7 @@ def create_app():
             DeepFace.analyze(
                 img_path=dummy,
                 actions=["emotion"],
-                detector_backend="retinaface",
+                detector_backend="opencv",
                 enforce_detection=False,
                 silent=True,
                 anti_spoofing=False,

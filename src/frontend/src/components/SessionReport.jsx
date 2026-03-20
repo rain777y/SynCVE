@@ -261,11 +261,13 @@ const SessionReport = ({ report, onResume, onStop }) => {
         <p className="disclaimer-text">{report.disclaimer}</p>
       )}
 
-      {/* Actions */}
-      <div className="report-actions">
-        <button onClick={onResume} className="btn btn-start">▶ Resume</button>
-        <button onClick={onStop} className="btn btn-stop">⏹ End Session</button>
-      </div>
+      {/* Actions (hidden in History view) */}
+      {(onResume || onStop) && (
+        <div className="report-actions">
+          {onResume && <button onClick={onResume} className="btn btn-start">▶ Resume</button>}
+          {onStop && <button onClick={onStop} className="btn btn-stop">⏹ End Session</button>}
+        </div>
+      )}
     </div>
   );
 };

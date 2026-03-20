@@ -23,6 +23,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from eval._gpu_init import init_gpu; init_gpu()  # must run before TF/DeepFace
 
 import cv2
 import numpy as np
@@ -36,13 +37,19 @@ np.random.seed(SEED)
 
 EMOTION_LABELS = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
 
-# Ensemble configuration (best known weights)
-ENSEMBLE_DETECTORS = ["retinaface", "mtcnn", "centerface"]
-ENSEMBLE_WEIGHTS = {"retinaface": 0.50, "mtcnn": 0.30, "centerface": 0.20}
+# Ensemble configuration (data-driven: centerface removed — 100% failure on <100px)
+ENSEMBLE_DETECTORS = ["retinaface", "mtcnn"]
+ENSEMBLE_WEIGHTS = {"retinaface": 0.50, "mtcnn": 0.50}
 
-# Post-processing defaults
-EMA_ALPHA = 0.3
-NOISE_FLOOR = 0.10
+# Post-processing defaults (data-driven from ablation study)
+EMA_ALPHA = 0.2       # ablation: 0.2 > 0.3
+NOISE_FLOOR = 0.0     # ablation: zero noise floor optimal
+
+# Resolution guard: skip detectors whose min receptive field exceeds input
+DETECTOR_MIN_SIZE = {"centerface": 100, "ssd": 100}
+
+# Adaptive preprocessing threshold: skip CLAHE+unsharp below this original size
+ADAPTIVE_THRESHOLD = 128
 
 # True baseline: DeepFace default detector, no preprocessing
 B0_DETECTOR = "opencv"
@@ -64,10 +71,13 @@ RAFDB_LABEL_MAP = {
 # Preprocessing (full pipeline)
 # ---------------------------------------------------------------------------
 def _apply_full_preprocess(frame: np.ndarray) -> np.ndarray:
-    """Apply super-resolution + unsharp mask + CLAHE."""
+    """Resolution-adaptive preprocessing: SR always, CLAHE+unsharp only on large inputs."""
     if frame is None or not hasattr(frame, "shape"):
         return frame
 
+    original_min = min(frame.shape[:2])
+
+    # Super-resolution upscale (always applied)
     height, width = frame.shape[:2]
     min_size = min(height, width)
     target_min = 256
@@ -77,16 +87,18 @@ def _apply_full_preprocess(frame: np.ndarray) -> np.ndarray:
         new_height = int(height * scale)
         frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
 
-    blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=1.0)
-    frame = cv2.addWeighted(frame, 1.25, blurred, -0.25, 0)
+    # Unsharp + CLAHE only when original resolution is sufficient
+    if original_min >= ADAPTIVE_THRESHOLD:
+        blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=1.0)
+        frame = cv2.addWeighted(frame, 1.25, blurred, -0.25, 0)
 
-    if len(frame.shape) >= 3 and frame.shape[2] == 3:
-        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-        l_channel, a_channel, b_channel = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        l_eq = clahe.apply(l_channel)
-        merged = cv2.merge((l_eq, a_channel, b_channel))
-        frame = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+        if len(frame.shape) >= 3 and frame.shape[2] == 3:
+            lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+            l_channel, a_channel, b_channel = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            l_eq = clahe.apply(l_channel)
+            merged = cv2.merge((l_eq, a_channel, b_channel))
+            frame = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
 
     return frame
 
@@ -103,8 +115,17 @@ def run_ensemble_inference(processed_frame: np.ndarray) -> dict | None:
 
     backend_results = []
     successful_detectors = []
+    skipped_detectors = []
+
+    input_min_dim = min(processed_frame.shape[:2]) if hasattr(processed_frame, "shape") else 0
 
     for detector in ENSEMBLE_DETECTORS:
+        # Skip detectors whose minimum receptive field exceeds input size
+        min_required = DETECTOR_MIN_SIZE.get(detector, 0)
+        if min_required and input_min_dim < min_required:
+            skipped_detectors.append(detector)
+            continue
+
         try:
             result = DeepFace.analyze(
                 img_path=processed_frame.copy(),
@@ -139,11 +160,14 @@ def run_ensemble_inference(processed_frame: np.ndarray) -> dict | None:
             emotion_accumulator[e] /= total_weight
 
     dominant = max(emotion_accumulator, key=emotion_accumulator.get)
+    failed = [d for d in ENSEMBLE_DETECTORS if d not in successful_detectors and d not in skipped_detectors]
 
     return {
         "emotion": emotion_accumulator,
         "dominant_emotion": dominant,
         "detectors_used": successful_detectors,
+        "detectors_failed": failed,
+        "detectors_skipped": skipped_detectors,
     }
 
 
@@ -379,6 +403,29 @@ def evaluate_pipeline_on_dataset(
         raw_results.append(result)
         latencies.append(elapsed_ms)
 
+    # Ensemble health report (pipeline mode only)
+    ensemble_health = {}
+    if mode == "pipeline" and raw_results:
+        from collections import Counter
+        used_counts = Counter()
+        failed_counts = Counter()
+        for r in raw_results:
+            for d in r.get("detectors_used", []):
+                used_counts[d] += 1
+            for d in r.get("detectors_failed", []):
+                failed_counts[d] += 1
+        total_inferences = len(raw_results)
+        ensemble_health = {
+            det: {
+                "success_rate": round(used_counts.get(det, 0) / total_inferences, 4),
+                "failures": failed_counts.get(det, 0),
+            }
+            for det in ENSEMBLE_DETECTORS
+        }
+        print(f"  Ensemble health ({total_inferences} images):")
+        for det, info in ensemble_health.items():
+            print(f"    {det}: {info['success_rate']:.0%} success, {info['failures']} failures")
+
     # NOTE: EMA temporal smoothing is NOT applied here because these are
     # independent static images, not a video sequence.  EMA is only
     # meaningful for consecutive frames of the same subject.
@@ -409,9 +456,12 @@ def evaluate_pipeline_on_dataset(
     config_info = {}
     if mode == "pipeline":
         config_info = {
-            "preprocessing": "full (SR + unsharp + CLAHE)",
+            "preprocessing": f"adaptive (SR always; CLAHE+unsharp only if original >= {ADAPTIVE_THRESHOLD}px)",
             "ensemble_detectors": ENSEMBLE_DETECTORS,
             "ensemble_weights": ENSEMBLE_WEIGHTS,
+            "detector_min_size": DETECTOR_MIN_SIZE,
+            "adaptive_threshold": ADAPTIVE_THRESHOLD,
+            "ensemble_health": ensemble_health,
             "ema_alpha": EMA_ALPHA,
             "noise_floor": NOISE_FLOOR,
         }
@@ -540,9 +590,13 @@ def run_comparison(args: argparse.Namespace) -> None:
             "postprocessing": "none",
         },
         "pipeline_config": {
-            "preprocessing": "full_preprocess (SR + unsharp + CLAHE)",
+            "preprocessing": f"adaptive (SR always; CLAHE+unsharp only if original >= {ADAPTIVE_THRESHOLD}px)",
             "ensemble_detectors": ENSEMBLE_DETECTORS,
             "ensemble_weights": ENSEMBLE_WEIGHTS,
+            "detector_min_size": DETECTOR_MIN_SIZE,
+            "adaptive_threshold": ADAPTIVE_THRESHOLD,
+            "ema_alpha": EMA_ALPHA,
+            "noise_floor": NOISE_FLOOR,
             "temporal_postprocess": "NOT applied (static images; see ablation_postprocess for temporal eval)",
         },
         "metadata": {

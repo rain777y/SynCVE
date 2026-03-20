@@ -1,4 +1,5 @@
 # built-in dependencies
+import logging as _stdlib_logging
 import uuid
 from typing import Dict, List, Optional, Union
 
@@ -13,6 +14,15 @@ from deepface.commons.logger import Logger
 from src.backend.config import get_config
 
 logger = Logger()
+_log = _stdlib_logging.getLogger(__name__)
+
+
+def _safe_log_error(msg: str) -> None:
+    """Log error safely — avoids emoji UnicodeEncodeError on Windows (cp1252)."""
+    try:
+        logger.error(msg)
+    except Exception:
+        _log.error(msg)
 
 
 def _get_deepface_config():
@@ -29,7 +39,7 @@ def _get_deepface_config():
 #   yunet, centerface
 DETECTOR_WEIGHTS = {
     "retinaface": 0.50,
-    "mtcnn": 0.30,
+    "mtcnn": 0.50,
     "centerface": 0.20,
     "yolov8n": 0.15,
     "yolov11n": 0.15,
@@ -38,6 +48,13 @@ DETECTOR_WEIGHTS = {
     "yunet": 0.15,
     "opencv": 0.10,
     "ssd": 0.10,
+}
+
+# Minimum input resolution (min dimension) required per detector.
+# Detectors below this threshold will be skipped during ensemble.
+DETECTOR_MIN_SIZE = {
+    "centerface": 100,
+    "ssd": 100,
 }
 
 
@@ -65,46 +82,61 @@ def _to_bool(value: Union[str, bool, None], *, default: bool = True) -> bool:
 
 def _preprocess_image(img: Union[str, np.ndarray]) -> np.ndarray:
     """
-    Apply lightweight preprocessing to improve downstream emotion accuracy:
-    - Load any supported DeepFace input into a numpy array
-    - Upscale low-resolution inputs with mild sharpening (pseudo super-resolution)
-    - Normalize lighting using CLAHE on the luminance channel
+    Resolution-adaptive preprocessing pipeline:
+    - Load input into numpy array
+    - Super-resolve (upscale) small inputs
+    - Apply unsharp mask + CLAHE only when original resolution >= adaptive_threshold
+      (on tiny images like 48px FER2013 crops, CLAHE amplifies noise and hurts accuracy)
     """
-    # DeepFace handles the heavy lifting of decoding paths/base64/URLs into arrays
     if isinstance(img, np.ndarray):
         frame = img.copy()
     else:
         frame, _ = image_utils.load_image(img)
 
-    enhanced = _maybe_super_resolve(frame)
-    normalized = _normalize_lighting(enhanced)
+    cfg = get_config().preprocess
+    original_min = min(frame.shape[:2])
 
-    return normalized
+    # SR upscale (always beneficial, even on 48px: +1.4% in ablation)
+    if cfg.enable_sr:
+        frame = _maybe_super_resolve(frame)
+
+    # Unsharp + CLAHE: only when original image is large enough
+    if original_min >= cfg.adaptive_threshold:
+        if cfg.enable_unsharp:
+            frame = _apply_unsharp_mask(frame)
+        if cfg.enable_clahe:
+            frame = _normalize_lighting(frame)
+
+    return frame
 
 
 def _maybe_super_resolve(frame: np.ndarray) -> np.ndarray:
     """
-    Lightweight super-resolution: upscale small faces and apply unsharp masking.
-    This avoids dependency on heavyweight SR models while still restoring detail.
+    Lightweight super-resolution: upscale small inputs via cubic interpolation.
+    Unsharp masking is handled separately by _apply_unsharp_mask.
     """
     if frame is None or not hasattr(frame, "shape"):
         return frame
 
+    cfg = get_config().preprocess
     height, width = frame.shape[:2]
     min_size = min(height, width)
 
-    target_min = 256
-    if min_size < target_min:
-        scale = target_min / float(min_size)
+    if min_size < cfg.sr_min_size:
+        scale = cfg.sr_min_size / float(min_size)
         new_width = int(width * scale)
         new_height = int(height * scale)
         frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
 
-    # Unsharp mask for extra crispness
-    blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=1.0)
-    sharpened = cv2.addWeighted(frame, 1.25, blurred, -0.25, 0)
+    return frame
 
-    return sharpened
+
+def _apply_unsharp_mask(frame: np.ndarray) -> np.ndarray:
+    """Apply unsharp masking for detail enhancement."""
+    if frame is None or not hasattr(frame, "shape"):
+        return frame
+    blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=1.0)
+    return cv2.addWeighted(frame, 1.25, blurred, -0.25, 0)
 
 
 def _normalize_lighting(frame: np.ndarray) -> np.ndarray:
@@ -254,7 +286,7 @@ def represent(
         return result
     except Exception as err:
         error_id = str(uuid.uuid4())[:8]
-        logger.error(f"[{error_id}] represent: {err}", exc_info=True)
+        _safe_log_error(f"[{error_id}] represent: {err}")
         return {"error": "Representation failed. Please try again.", "error_id": error_id}, 500
 
 
@@ -283,7 +315,7 @@ def verify(
         return obj
     except Exception as err:
         error_id = str(uuid.uuid4())[:8]
-        logger.error(f"[{error_id}] verify: {err}", exc_info=True)
+        _safe_log_error(f"[{error_id}] verify: {err}")
         return {"error": "Verification failed. Please try again.", "error_id": error_id}, 500
 
 
@@ -358,7 +390,17 @@ def analyze(
             spoof_detected = False
             backend_errors: Dict[str, str] = {}
 
+            # Determine input resolution for detector min-size filtering
+            input_min_dim = min(processed_img.shape[:2]) if hasattr(processed_img, "shape") else 0
+
             for backend in detectors:
+                # Skip detectors whose minimum receptive field exceeds the input size
+                min_required = DETECTOR_MIN_SIZE.get(backend, 0)
+                if min_required and input_min_dim < min_required:
+                    backend_errors[backend] = f"input too small ({input_min_dim}px < {min_required}px min)"
+                    logger.info(f"Skipping {backend}: input {input_min_dim}px below minimum {min_required}px")
+                    continue
+
                 try:
                     analysis = _analyze_single_backend(backend)
                     successful_detectors.append(backend)
@@ -442,7 +484,7 @@ def analyze(
                         logger.info(f"{detector_backend} succeeded after enforce_detection=False fallback")
                     except Exception as retry_err:
                         cleaned_retry = _clean_error_message(str(retry_err))
-                        logger.error(f"{detector_backend} failed after fallback disable: {cleaned_retry}")
+                        _safe_log_error(f"{detector_backend} failed after fallback disable: {cleaned_retry}")
                         raise
                 elif "Spoof detected" in str(backend_err):
                     return (
@@ -475,5 +517,5 @@ def analyze(
         return result
     except Exception as err:
         error_id = str(uuid.uuid4())[:8]
-        logger.error(f"[{error_id}] analyze: {err}", exc_info=True)
+        _safe_log_error(f"[{error_id}] analyze: {err}")
         return {"error": "Analysis failed. Please try again.", "error_id": error_id}, 500

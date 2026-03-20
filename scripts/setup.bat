@@ -22,8 +22,8 @@ echo %ESC%[96m  SynCVE - First Time Setup%ESC%[0m
 echo %ESC%[96m====================================%ESC%[0m
 echo.
 
-:: [1/7] Check prerequisites
-echo %INFO% [1/7] Checking prerequisites...
+:: [1/8] Check prerequisites
+echo %INFO% [1/8] Checking prerequisites...
 
 where conda >nul 2>&1 || (
     echo %ERR% Conda not found. Install Miniconda first: https://docs.conda.io/en/latest/miniconda.html
@@ -54,13 +54,13 @@ for /f "delims=" %%M in ('call npm --version 2^>nul') do set "NPMVER=%%M"
 echo   %OK% npm found: %NPMVER%
 echo.
 
-:: [2/7] Set up Python environment
-echo %INFO% [2/7] Setting up Python environment...
+:: [2/8] Create conda environment (Python + CUDA + cuDNN)
+echo %INFO% [2/8] Setting up Python environment with GPU support...
 
 call conda env list 2>nul | findstr /C:"%ENV_NAME%" >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo   Creating conda environment "%ENV_NAME%" with Python 3.10...
-    call conda create -n %ENV_NAME% python=3.10 -y
+    echo   Creating conda environment "%ENV_NAME%" from environment.yml...
+    call conda env create -f "%ROOT%environment.yml"
     if errorlevel 1 (
         echo %ERR% Failed to create conda environment.
         pause
@@ -69,12 +69,13 @@ if %ERRORLEVEL% NEQ 0 (
     echo   %OK% Conda environment "%ENV_NAME%" created.
 ) else (
     echo   %OK% Conda environment "%ENV_NAME%" already exists.
+    echo   Updating from environment.yml...
+    call conda env update -n %ENV_NAME% -f "%ROOT%environment.yml" --prune
 )
 echo.
 
-:: [3/7] Install Python dependencies
-echo %INFO% [3/7] Installing Python dependencies...
-
+:: [3/8] Activate environment
+echo %INFO% [3/8] Activating environment...
 call conda activate %ENV_NAME%
 if errorlevel 1 (
     echo %ERR% Failed to activate conda environment "%ENV_NAME%".
@@ -86,18 +87,27 @@ echo   %OK% Activated conda environment "%ENV_NAME%".
 
 for /f "delims=" %%P in ('python --version 2^>nul') do set "PYVER=%%P"
 echo   %OK% Python: %PYVER%
+echo.
 
-echo   Installing pip packages from requirements.txt...
-pip install -r "%ROOT%requirements.txt" --upgrade --no-cache-dir
+:: [4/8] Install PyTorch with CUDA support (special index URL)
+echo %INFO% [4/8] Installing PyTorch with CUDA 11.8 support...
+
+python -c "import torch; print(torch.cuda.is_available())" 2>nul | findstr "True" >nul 2>&1
 if errorlevel 1 (
-    echo %WARN% Some pip packages may have failed. Check output above.
+    echo   Installing PyTorch CUDA from pytorch.org...
+    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+    if errorlevel 1 (
+        echo %WARN% PyTorch CUDA install failed. GPU will not be available.
+    ) else (
+        echo   %OK% PyTorch CUDA installed.
+    )
 ) else (
-    echo   %OK% Python dependencies installed.
+    echo   %OK% PyTorch CUDA already available.
 )
 echo.
 
-:: [4/7] Check GPU availability
-echo %INFO% [4/7] Checking GPU availability...
+:: [5/8] Check GPU availability
+echo %INFO% [5/8] Checking GPU availability...
 
 nvidia-smi >nul 2>&1
 if not errorlevel 1 (
@@ -111,12 +121,14 @@ if not errorlevel 1 (
 
 python -c "import torch; gpu=torch.cuda.is_available(); name=torch.cuda.get_device_name(0) if gpu else 'N/A'; print(f'  PyTorch CUDA: {gpu}, Device: {name}')" 2>nul
 if errorlevel 1 (
-    echo   %WARN% Could not check PyTorch CUDA. torch may not be installed yet.
+    echo   %WARN% Could not check PyTorch CUDA.
 )
+
+python -c "import tensorflow as tf; gpus=tf.config.list_physical_devices('GPU'); print(f'  TensorFlow GPU: {len(gpus)} device(s)')" 2>nul
 echo.
 
-:: [5/7] Install frontend dependencies
-echo %INFO% [5/7] Installing frontend dependencies...
+:: [6/8] Install frontend dependencies
+echo %INFO% [6/8] Installing frontend dependencies...
 
 if not exist "%ROOT%src\frontend\package.json" (
     echo %ERR% Frontend package.json not found.
@@ -137,8 +149,8 @@ if not "!NPM_EXIT!"=="0" (
 echo   %OK% Frontend dependencies installed.
 echo.
 
-:: [6/7] Set up environment files
-echo %INFO% [6/7] Setting up environment files...
+:: [7/8] Set up environment files
+echo %INFO% [7/8] Setting up environment files...
 
 if not exist "%ROOT%.env" (
     if exist "%ROOT%.env.example" (
@@ -150,19 +162,18 @@ if not exist "%ROOT%.env" (
     echo   %OK% .env already exists.
 )
 echo   %OK% Application settings in settings.yml (no edits needed).
-
-echo   %OK% Frontend reads from root .env via env-cmd.
 echo.
 
-:: [7/7] Verify setup
-echo %INFO% [7/7] Verifying setup...
+:: [8/8] Verify setup
+echo %INFO% [8/8] Verifying setup...
 
 set "VERIFY_OK=1"
 python -c "import flask; print(f'  Flask {flask.__version__}')" 2>nul || set "VERIFY_OK=0"
 python -c "import deepface; print(f'  DeepFace {deepface.__version__}')" 2>nul || set "VERIFY_OK=0"
 python -c "import tensorflow as tf; print(f'  TensorFlow {tf.__version__}')" 2>nul || set "VERIFY_OK=0"
-python -c "import torch; print(f'  PyTorch {torch.__version__}')" 2>nul || set "VERIFY_OK=0"
+python -c "import torch; print(f'  PyTorch {torch.__version__} (CUDA={torch.cuda.is_available()})')" 2>nul || set "VERIFY_OK=0"
 python -c "import cv2; print(f'  OpenCV {cv2.__version__}')" 2>nul || set "VERIFY_OK=0"
+python -c "import sklearn; print(f'  scikit-learn {sklearn.__version__}')" 2>nul || set "VERIFY_OK=0"
 
 echo.
 echo %ESC%[92m====================================%ESC%[0m
@@ -174,5 +185,9 @@ echo     1. Edit .env with your API keys
 echo     2. Run scripts\start_backend.bat
 echo     3. Run scripts\start_frontend.bat
 echo     4. Open http://localhost:3000
+echo.
+echo   For evaluation:
+echo     conda activate SynCVE
+echo     python eval/run_all.py --limit 500
 echo.
 pause

@@ -19,6 +19,21 @@ from typing import Dict, List, Optional
 
 import pytest
 
+
+# ---------------------------------------------------------------------------
+# Auto-skip Vertex AI / Gemini 429 rate-limit errors instead of failing
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def skip_on_rate_limit():
+    """Convert Vertex AI 429 RESOURCE_EXHAUSTED into a skip, not a failure."""
+    try:
+        yield
+    except Exception as exc:
+        exc_str = str(exc)
+        if "429" in exc_str and ("RESOURCE_EXHAUSTED" in exc_str or "rate" in exc_str.lower()):
+            pytest.skip(f"Vertex AI / Gemini rate limit (429) — {exc_str[:120]}")
+        raise
+
 # ---------------------------------------------------------------------------
 # Ensure project root is on sys.path so `from src.backend.*` works
 # ---------------------------------------------------------------------------
@@ -56,7 +71,15 @@ GENERATED_DIR = ASSETS_DIR / "images"
 
 
 def _has_gemini() -> bool:
-    return bool(GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here")
+    """True if Gemini can be used: either an API key is set, or a service account JSON exists."""
+    if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
+        return True
+    # Also accept Vertex AI service account authentication
+    sa_candidates = [
+        PROJECT_ROOT / "sightline-backend-sa.json",
+        PROJECT_ROOT / "src" / "backend" / "sightline-backend-sa.json",
+    ]
+    return any(p.exists() for p in sa_candidates)
 
 
 def _has_supabase() -> bool:
@@ -209,18 +232,50 @@ def generated_face_images() -> Dict[str, bytes]:
     results: Dict[str, bytes] = {}
     GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
-    if _has_gemini():
-        try:
-            from google import genai
-            from google.genai import types
+    # Static fallback: use real e2e face images from artifacts (detectable by DeepFace)
+    _artifacts_dir = PROJECT_ROOT / "tests" / "artifacts" / "images"
 
-            client = genai.Client(api_key=GEMINI_API_KEY)
+    def _static_or_pil(emotion_name: str) -> bytes:
+        # Prefer emotion-specific real face images (these are DeepFace-detectable)
+        for candidate in [
+            _artifacts_dir / f"e2e_{emotion_name}_face.jpg",
+            _artifacts_dir / f"e2e_neutral_face.jpg",
+            _artifacts_dir / "test_face_basic.jpg",
+        ]:
+            if candidate.exists():
+                return candidate.read_bytes()
+        return _generate_pil_face(emotion_name)
+
+    if _has_gemini():
+        # Build a genai client: prefer Vertex AI SA, fall back to API key
+        def _make_genai_client():
+            from google import genai
+            sa_candidates = [
+                PROJECT_ROOT / "sightline-backend-sa.json",
+                PROJECT_ROOT / "src" / "backend" / "sightline-backend-sa.json",
+            ]
+            for sa_path in sa_candidates:
+                if sa_path.exists():
+                    import os as _os
+                    _os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", str(sa_path))
+                    return genai.Client(vertexai=True, project="sightline-hackathon", location="us-central1")
+            if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
+                return genai.Client(api_key=GEMINI_API_KEY)
+            return None
+
+        try:
+            from google.genai import types
+            client = _make_genai_client()
 
             for emotion in emotions:
                 cache_path = GENERATED_DIR / f"e2e_{emotion}_face.jpg"
                 # Re-use cached file if it exists and is non-trivial
                 if cache_path.exists() and cache_path.stat().st_size > 1000:
                     results[emotion] = cache_path.read_bytes()
+                    continue
+
+                if client is None:
+                    results[emotion] = _static_or_pil(emotion)
                     continue
 
                 try:
@@ -240,20 +295,20 @@ def generated_face_images() -> Dict[str, bytes]:
                         cache_path.write_bytes(img_bytes)
                         results[emotion] = img_bytes
                     else:
-                        results[emotion] = _generate_pil_face(emotion)
+                        results[emotion] = _static_or_pil(emotion)
                 except Exception as exc:
                     print(f"[e2e] Gemini image gen failed for {emotion}: {exc}")
-                    results[emotion] = _generate_pil_face(emotion)
+                    results[emotion] = _static_or_pil(emotion)
 
                 # Small delay to avoid rate limits
                 time.sleep(1.0)
         except Exception as exc:
-            print(f"[e2e] Gemini client init failed: {exc}. Using PIL fallback.")
+            print(f"[e2e] Gemini client init failed: {exc}. Using static fallback.")
             for emotion in emotions:
-                results[emotion] = _generate_pil_face(emotion)
+                results[emotion] = _static_or_pil(emotion)
     else:
         for emotion in emotions:
-            results[emotion] = _generate_pil_face(emotion)
+            results[emotion] = _static_or_pil(emotion)
 
     return results
 
@@ -265,28 +320,45 @@ def no_face_image() -> bytes:
     if cache_path.exists() and cache_path.stat().st_size > 1000:
         return cache_path.read_bytes()
 
+    # Use static no-face test image if available
+    _static_no_face = PROJECT_ROOT / "tests" / "artifacts" / "images" / "test_no_face.jpg"
+    if _static_no_face.exists():
+        return _static_no_face.read_bytes()
+
     if _has_gemini():
         try:
             from google import genai
             from google.genai import types
-
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            response = client.models.generate_content(
-                model="gemini-2.5-flash-image",
-                contents=[
-                    "A photorealistic landscape photo of mountains and a lake at sunset, "
-                    "no people, no faces, nature only"
-                ],
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE"],
-                ),
-            )
-            for part in getattr(response, "parts", []) or []:
-                if hasattr(part, "inline_data") and part.inline_data:
-                    data = part.inline_data.data
-                    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-                    cache_path.write_bytes(data)
-                    return data
+            sa_candidates = [
+                PROJECT_ROOT / "sightline-backend-sa.json",
+                PROJECT_ROOT / "src" / "backend" / "sightline-backend-sa.json",
+            ]
+            _sa = next((str(p) for p in sa_candidates if p.exists()), None)
+            if _sa:
+                import os as _os
+                _os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", _sa)
+                client = genai.Client(vertexai=True, project="sightline-hackathon", location="us-central1")
+            elif GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
+                client = genai.Client(api_key=GEMINI_API_KEY)
+            else:
+                client = None
+            if client:
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash-image",
+                    contents=[
+                        "A photorealistic landscape photo of mountains and a lake at sunset, "
+                        "no people, no faces, nature only"
+                    ],
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                    ),
+                )
+                for part in getattr(response, "parts", []) or []:
+                    if hasattr(part, "inline_data") and part.inline_data:
+                        data = part.inline_data.data
+                        GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+                        cache_path.write_bytes(data)
+                        return data
         except Exception as exc:
             print(f"[e2e] Gemini no-face gen failed: {exc}")
 
@@ -298,15 +370,15 @@ def no_face_image() -> bytes:
 
 @pytest.fixture(scope="session")
 def face_image_base64(generated_face_images) -> str:
-    """Return a neutral face as base64 string for API calls."""
+    """Return a neutral face as data-URI base64 string for API calls."""
     img_bytes = generated_face_images.get("neutral") or _generate_pil_face("neutral")
-    return base64.b64encode(img_bytes).decode("utf-8")
+    return "data:image/jpeg;base64," + base64.b64encode(img_bytes).decode("utf-8")
 
 
 @pytest.fixture(scope="session")
 def no_face_image_base64(no_face_image) -> str:
-    """Return a no-face image as base64 string for API calls."""
-    return base64.b64encode(no_face_image).decode("utf-8")
+    """Return a no-face image as data-URI base64 string for API calls."""
+    return "data:image/jpeg;base64," + base64.b64encode(no_face_image).decode("utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -314,10 +386,20 @@ def no_face_image_base64(no_face_image) -> str:
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="session")
 def gemini_client():
-    """Return a real google.genai.Client instance. Skips if no API key."""
+    """Return a real google.genai.Client instance (Vertex AI SA preferred, API key fallback)."""
     if not _has_gemini():
-        pytest.skip("GEMINI_API_KEY not available")
+        pytest.skip("Neither GEMINI_API_KEY nor service account JSON found")
     from google import genai
+    import os as _os
+    sa_candidates = [
+        PROJECT_ROOT / "sightline-backend-sa.json",
+        PROJECT_ROOT / "src" / "backend" / "sightline-backend-sa.json",
+    ]
+    for sa_path in sa_candidates:
+        if sa_path.exists():
+            _os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", str(sa_path))
+            return genai.Client(vertexai=True, project="sightline-hackathon", location="us-central1")
+    # Fallback: API key
     return genai.Client(api_key=GEMINI_API_KEY)
 
 

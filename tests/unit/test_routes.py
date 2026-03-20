@@ -58,7 +58,7 @@ class TestAnalyzeEndpoint:
         resp = client.post("/analyze", json={"actions": ["emotion"]})
         assert resp.status_code == 400
         data = resp.get_json()
-        assert "exception" in data
+        assert "error" in data
 
     def test_analyze_with_string_actions(self, client, sample_base64_image, mock_deepface):
         """Actions passed as comma-separated string should be parsed correctly."""
@@ -162,7 +162,7 @@ class TestRepresentEndpoint:
         resp = client.post("/represent", json={})
         assert resp.status_code == 400
         data = resp.get_json()
-        assert "exception" in data
+        assert "error" in data
 
 
 # =========================================================================

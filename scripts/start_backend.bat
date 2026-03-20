@@ -71,6 +71,10 @@ exit /b 0
 call conda activate %ENV_NAME% >nul 2>&1
 if not errorlevel 1 (
     echo %OK% Conda environment "%ENV_NAME%" activated.
+    :: Ensure conda Library\bin is on PATH (cuDNN DLLs for TensorFlow GPU)
+    if defined CONDA_PREFIX (
+        set "PATH=%CONDA_PREFIX%\Library\bin;!PATH!"
+    )
     exit /b 0
 )
 echo %ERR% Conda environment "%ENV_NAME%" not found.
@@ -114,7 +118,7 @@ nvidia-smi >nul 2>&1
 if not errorlevel 1 (
     set "GPU_STATUS=CUDA"
     echo %OK% GPU detected via nvidia-smi.
-    for /f "tokens=*" %%G in ('nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2^>nul') do (
+    for /f "tokens=*" %%G in ('nvidia-smi --query-gpu=name --format=csv,noheader 2^>nul') do (
         echo       %%G
     )
 )

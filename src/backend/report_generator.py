@@ -193,7 +193,7 @@ def generate_report(session_id: str) -> Dict[str, str]:
     """
     Text summary report on session stop. Single LLM call.
     """
-    from src.backend.session_manager import fetch_emotion_logs
+    from src.backend.session_manager import fetch_emotion_logs, get_temporal_summary
 
     supabase = get_supabase_client()
     if not supabase:
@@ -223,12 +223,27 @@ def generate_report(session_id: str) -> Dict[str, str]:
         )
         timeline_str = "\n".join(timeline[:30])  # cap timeline length
 
+        # Build temporal context for richer LLM summary
+        temporal = get_temporal_summary(session_id)
+        temporal_context = ""
+        if temporal:
+            temporal_context = (
+                f"\nTemporal Analysis:\n"
+                f"- Stability Score: {temporal.get('stability_score', 'N/A')}\n"
+                f"- Transition Count: {temporal.get('transition_count', 0)}\n"
+                f"- Frames Analyzed: {temporal.get('frame_count', 0)}\n"
+            )
+            non_stable = [t for t in (temporal.get('trends') or []) if t.get('direction') != 'stable']
+            if non_stable:
+                trend_str = ", ".join(f"{t['emotion']} {t['direction']}" for t in non_stable[:3])
+                temporal_context += f"- Notable Trends: {trend_str}\n"
+
         prompt = f"""Analyze this emotion session data and return JSON only.
 
 Session: {total_frames} frames analyzed.
 Distribution: {stats_str}
 Timeline (sampled): {timeline_str}
-
+{temporal_context}
 Return exactly this JSON (no markdown fences):
 {{"summary": "<2-3 sentence emotional journey summary>", "recommendations": "<3 actionable bullet points>"}}"""
 
@@ -392,9 +407,16 @@ def _fetch_session_keyframes(
 
 
 def _run_pro_vision_report(context_prompt: str, keyframes: List[Dict[str, Any]]) -> str:
-    """Combine context prompt + keyframe images via the vision model for a Markdown report."""
+    """Combine context prompt + keyframe images via the vision model for a Markdown report.
+    Falls back to text-only analysis when no keyframes are available.
+    """
     if not keyframes:
-        raise ValueError("No keyframes available for vision report")
+        # Text-only fallback: no images available, summarize from the context prompt alone
+        return generate_text(
+            f"{context_prompt}\n\nNo keyframe images were available. "
+            "Provide a text-only emotional analysis based on the metrics above. "
+            "Format as concise Markdown with bullet points and a closing reassurance note.",
+        )
 
     contents: list = [context_prompt]
     for frame in keyframes:
@@ -402,6 +424,14 @@ def _run_pro_vision_report(context_prompt: str, keyframes: List[Dict[str, Any]])
         if not isinstance(data, (bytes, bytearray)):
             continue
         contents.append(to_image_part(data))
+
+    if len(contents) <= 1:
+        # No valid image data could be loaded despite having keyframe references
+        return generate_text(
+            f"{context_prompt}\n\nKeyframe images could not be loaded. "
+            "Provide a text-only emotional analysis based on the metrics above. "
+            "Format as concise Markdown with bullet points and a closing reassurance note.",
+        )
 
     return generate_multimodal(
         contents,

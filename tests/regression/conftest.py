@@ -28,14 +28,16 @@ def backend_url():
 
 @pytest.fixture(scope="session")
 def test_face_image_base64():
-    """Load a real test face image as base64."""
+    """Load a real test face image as data-URI base64."""
     image_paths = [
         ARTIFACTS_DIR / "images" / "neutral_face.jpg",
         ARTIFACTS_DIR / "images" / "happy_face.jpg",
+        ARTIFACTS_DIR / "images" / "e2e_neutral_face.jpg",
+        ARTIFACTS_DIR / "images" / "e2e_happy_face.jpg",
         ARTIFACTS_DIR / "images" / "test_face_basic.jpg",
     ]
     for path in image_paths:
         if path.exists():
             with open(path, "rb") as f:
-                return base64.b64encode(f.read()).decode("utf-8")
+                return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode("utf-8")
     pytest.skip("No test face image available. Run create_test_images.py first.")

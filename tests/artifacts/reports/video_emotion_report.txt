@@ -2,4 +2,4 @@ Video Emotion Analysis Report
 Frames analyzed: 6
 Dominant: happy (100.00%)
 Peak: happy (100.00%)
-Averages: {'happy': 0.999996344248288}
+Averages: {'angry': 3.3433455427363296e-09, 'disgust': 8.444052499855904e-15, 'fear': 2.414235086569187e-10, 'happy': 0.9999963506062826, 'sad': 1.7235768756354575e-05, 'surprise': 7.270752655500699e-09, 'neutral': 0.0003487863277632992}

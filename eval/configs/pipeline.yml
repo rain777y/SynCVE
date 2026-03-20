@@ -1,18 +1,25 @@
 experiment: pipeline_vs_baseline
-description: "Full SynCVE pipeline vs raw DeepFace comparison"
+description: "Full SynCVE pipeline vs raw DeepFace — data-driven parameters"
 
 datasets:
   - fer2013
   - rafdb
 
 pipeline:
-  preprocessing: full_preprocess
+  preprocessing:
+    mode: adaptive
+    sr: always                       # +1.4% even on 48px (ablation)
+    adaptive_threshold: 128          # skip CLAHE+unsharp below this original size
+    clahe: true                      # effective on >=128px; harmful on 48px (-8.2%)
+    unsharp: true
   ensemble:
-    detectors: [retinaface, mtcnn, centerface]
+    detectors: [retinaface, mtcnn]   # centerface removed: 100% failure on <100px input
     weights:
       retinaface: 0.50
-      mtcnn: 0.30
-      centerface: 0.20
+      mtcnn: 0.50
+    detector_min_size:
+      centerface: 100
+      ssd: 100
   postprocess:
-    ema_alpha: 0.3
-    noise_floor: 0.10
+    ema_alpha: 0.2                   # ablation: 0.2 > 0.3
+    noise_floor: 0.0                 # ablation: zero noise floor optimal

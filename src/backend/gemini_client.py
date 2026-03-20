@@ -42,11 +42,17 @@ def _ensure_initialized():
         from pathlib import Path
 
         sa_path = cfg.service_account_path
-        # Auto-detect SA JSON next to backend code
+        # Auto-detect SA JSON in several locations
         if not sa_path:
-            candidate = Path(__file__).parent / "sightline-backend-sa.json"
-            if candidate.exists():
-                sa_path = str(candidate)
+            candidates = [
+                Path(__file__).parent / "sightline-backend-sa.json",  # src/backend/
+                Path(__file__).parents[2] / "sightline-backend-sa.json",  # project root
+                Path(__file__).parents[1] / "sightline-backend-sa.json",  # src/
+            ]
+            for candidate in candidates:
+                if candidate.exists():
+                    sa_path = str(candidate)
+                    break
 
         if sa_path and Path(sa_path).exists():
             os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", sa_path)
@@ -305,7 +311,9 @@ def generate_multimodal(
         raise ValueError("Gemini client not configured")
 
     cfg = get_config().gemini
-    model_name = model or cfg.image_model
+    # Use the text model for multimodal understanding (image → text).
+    # The image_model is for image generation, not for understanding.
+    model_name = model or cfg.text_model
     types = _get_types()
 
     config_kwargs: Dict[str, Any] = {"response_modalities": ["TEXT"]}
@@ -333,9 +341,13 @@ def to_image_part(image_bytes: bytes, mime_type: str = "image/jpeg"):
     """
     types = _get_types()
     try:
-        return types.Part.from_bytes(image_bytes, mime_type=mime_type)
-    except AttributeError:
-        return types.Part.from_bytes_data(data=image_bytes, mime_type=mime_type)
+        # SDK >= 0.8: all arguments must be keyword-only
+        return types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+    except (AttributeError, TypeError):
+        try:
+            return types.Part.from_bytes_data(data=image_bytes, mime_type=mime_type)
+        except AttributeError:
+            return types.Part(inline_data=types.Blob(data=image_bytes, mime_type=mime_type))
 
 
 # ---------------------------------------------------------------------------
