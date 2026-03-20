@@ -1,16 +1,16 @@
 """
 eval/optimize_ensemble_weights.py — Ensemble Weight Optimization
 
-Grid-searches over detector weights for (retinaface, mtcnn, centerface)
+Grid-searches over detector weights for (retinaface, mtcnn)
 to find the optimal weighted-average combination for emotion recognition.
 
 Workflow:
     1. Run each detector on a training subset (~2000 images from FER2013 train)
     2. Cache raw DeepFace results per (image, detector) to eval/cache/
-    3. Grid search: w1 in [0.1..0.8], w2 in [0.1..remaining], w3 = 1 - w1 - w2
+    3. Grid search: w1 in [0.1..0.9], w2 = 1 - w1
     4. Evaluate each weight combo on cached results
     5. Test optimal weights on full FER2013 test set
-    6. Compare vs hand-tuned weights (0.50, 0.30, 0.20)
+    6. Compare vs hand-tuned weights (0.50, 0.50)
 
 Usage
 -----
@@ -42,18 +42,24 @@ np.random.seed(SEED)
 
 EMOTION_LABELS = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
 
-ENSEMBLE_DETECTORS = ["retinaface", "mtcnn", "centerface"]
-HAND_TUNED_WEIGHTS = {"retinaface": 0.50, "mtcnn": 0.30, "centerface": 0.20}
+ENSEMBLE_DETECTORS = ["retinaface", "mtcnn"]
+HAND_TUNED_WEIGHTS = {"retinaface": 0.50, "mtcnn": 0.50}
 
 
 # ---------------------------------------------------------------------------
 # Full preprocessing (same as ablation_preprocess full_preprocess)
 # ---------------------------------------------------------------------------
+ADAPTIVE_THRESHOLD = 128  # skip CLAHE+unsharp when original min dim < this
+
+
 def _apply_full_preprocess(frame: np.ndarray) -> np.ndarray:
-    """Apply super-resolution + unsharp mask + CLAHE."""
+    """Resolution-adaptive preprocessing: SR always, CLAHE+unsharp only on large inputs."""
     if frame is None or not hasattr(frame, "shape"):
         return frame
 
+    original_min = min(frame.shape[:2])
+
+    # Super-resolution upscale (always applied)
     height, width = frame.shape[:2]
     min_size = min(height, width)
     target_min = 256
@@ -63,16 +69,18 @@ def _apply_full_preprocess(frame: np.ndarray) -> np.ndarray:
         new_height = int(height * scale)
         frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
 
-    blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=1.0)
-    frame = cv2.addWeighted(frame, 1.25, blurred, -0.25, 0)
+    # Unsharp + CLAHE only when original resolution is sufficient
+    if original_min >= ADAPTIVE_THRESHOLD:
+        blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=1.0)
+        frame = cv2.addWeighted(frame, 1.25, blurred, -0.25, 0)
 
-    if len(frame.shape) >= 3 and frame.shape[2] == 3:
-        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-        l_channel, a_channel, b_channel = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        l_eq = clahe.apply(l_channel)
-        merged = cv2.merge((l_eq, a_channel, b_channel))
-        frame = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+        if len(frame.shape) >= 3 and frame.shape[2] == 3:
+            lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+            l_channel, a_channel, b_channel = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            l_eq = clahe.apply(l_channel)
+            merged = cv2.merge((l_eq, a_channel, b_channel))
+            frame = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
 
     return frame
 
@@ -99,13 +107,28 @@ def load_cached_result(cache_dir: Path, img_path: str, detector: str) -> dict | 
     return None
 
 
+def _convert_numpy(obj):
+    """Recursively convert numpy types to Python natives for JSON serialization."""
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, dict):
+        return {k: _convert_numpy(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_convert_numpy(v) for v in obj]
+    return obj
+
+
 def save_cached_result(cache_dir: Path, img_path: str, detector: str, result: dict) -> None:
     """Persist DeepFace result to cache."""
     cache_dir.mkdir(parents=True, exist_ok=True)
     key = _cache_key(img_path, detector)
     cache_file = cache_dir / f"{key}.json"
     with open(cache_file, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False)
+        json.dump(_convert_numpy(result), f, ensure_ascii=False)
 
 
 # ---------------------------------------------------------------------------
@@ -227,10 +250,14 @@ def run_detector_on_samples(
                 "dominant_emotion": face["dominant_emotion"],
             }
             results[img_path] = entry
-            save_cached_result(cache_dir, img_path, detector, entry)
-
         except Exception:
             results[img_path] = None
+            continue
+
+        try:
+            save_cached_result(cache_dir, img_path, detector, entry)
+        except Exception:
+            pass  # cache write failure is non-fatal
 
     print(f"    Cache hits: {cache_hits}, misses: {cache_misses}")
     return results
@@ -310,46 +337,40 @@ def run_optimization(args: argparse.Namespace) -> None:
     best_weights = {}
     grid_results = []
 
-    # Generate weight combinations: w1 from 0.1 to 0.8, w2 from 0.1 to (1-w1-0.1), w3 = 1-w1-w2
-    w1_values = np.arange(step, 0.8 + step / 2, step)
+    # Generate weight combinations: w1 from step to (1-step), w2 = 1 - w1
+    w1_values = np.arange(step, 1.0 - step / 2, step)
 
     for w1 in w1_values:
-        w2_max = 1.0 - w1 - step + step / 2  # ensure w3 >= step
-        w2_values = np.arange(step, w2_max + step / 2, step)
-        for w2 in w2_values:
-            w3 = 1.0 - w1 - w2
-            if w3 < step / 2:
-                continue
+        w2 = 1.0 - w1
 
-            weights = {
-                ENSEMBLE_DETECTORS[0]: round(float(w1), 2),
-                ENSEMBLE_DETECTORS[1]: round(float(w2), 2),
-                ENSEMBLE_DETECTORS[2]: round(float(w3), 2),
-            }
+        weights = {
+            ENSEMBLE_DETECTORS[0]: round(float(w1), 2),
+            ENSEMBLE_DETECTORS[1]: round(float(w2), 2),
+        }
 
-            # Evaluate on training set
-            y_true = []
-            y_pred = []
-            for img_path, true_label in train_samples:
-                pred = weighted_ensemble_predict(train_detector_results, weights, img_path)
-                if pred is not None:
-                    y_true.append(true_label)
-                    y_pred.append(pred)
+        # Evaluate on training set
+        y_true = []
+        y_pred = []
+        for img_path, true_label in train_samples:
+            pred = weighted_ensemble_predict(train_detector_results, weights, img_path)
+            if pred is not None:
+                y_true.append(true_label)
+                y_pred.append(pred)
 
-            if len(y_true) == 0:
-                continue
+        if len(y_true) == 0:
+            continue
 
-            accuracy = float(np.sum(np.array(y_true) == np.array(y_pred)) / len(y_true))
+        accuracy = float(np.sum(np.array(y_true) == np.array(y_pred)) / len(y_true))
 
-            grid_results.append({
-                "weights": weights,
-                "accuracy": round(accuracy, 4),
-                "num_evaluated": len(y_true),
-            })
+        grid_results.append({
+            "weights": weights,
+            "accuracy": round(accuracy, 4),
+            "num_evaluated": len(y_true),
+        })
 
-            if accuracy > best_accuracy:
-                best_accuracy = accuracy
-                best_weights = weights.copy()
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_weights = weights.copy()
 
     print(f"\nGrid search complete: {len(grid_results)} weight combinations tested")
     print(f"Best training accuracy: {best_accuracy:.4f}")

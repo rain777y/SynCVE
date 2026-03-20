@@ -67,11 +67,17 @@ POSTPROCESS_CONFIGS = {
 # ---------------------------------------------------------------------------
 # Full preprocessing (matches the pipeline)
 # ---------------------------------------------------------------------------
+ADAPTIVE_THRESHOLD = 128  # skip CLAHE+unsharp when original min dim < this
+
+
 def _apply_full_preprocess(frame: np.ndarray) -> np.ndarray:
-    """Apply super-resolution + unsharp mask + CLAHE."""
+    """Resolution-adaptive preprocessing: SR always, CLAHE+unsharp only on large inputs."""
     if frame is None or not hasattr(frame, "shape"):
         return frame
 
+    original_min = min(frame.shape[:2])
+
+    # Super-resolution upscale (always applied)
     height, width = frame.shape[:2]
     min_size = min(height, width)
     target_min = 256
@@ -81,16 +87,18 @@ def _apply_full_preprocess(frame: np.ndarray) -> np.ndarray:
         new_height = int(height * scale)
         frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
 
-    blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=1.0)
-    frame = cv2.addWeighted(frame, 1.25, blurred, -0.25, 0)
+    # Unsharp + CLAHE only when original resolution is sufficient
+    if original_min >= ADAPTIVE_THRESHOLD:
+        blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=1.0)
+        frame = cv2.addWeighted(frame, 1.25, blurred, -0.25, 0)
 
-    if len(frame.shape) >= 3 and frame.shape[2] == 3:
-        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-        l_channel, a_channel, b_channel = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        l_eq = clahe.apply(l_channel)
-        merged = cv2.merge((l_eq, a_channel, b_channel))
-        frame = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+        if len(frame.shape) >= 3 and frame.shape[2] == 3:
+            lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+            l_channel, a_channel, b_channel = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            l_eq = clahe.apply(l_channel)
+            merged = cv2.merge((l_eq, a_channel, b_channel))
+            frame = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
 
     return frame
 

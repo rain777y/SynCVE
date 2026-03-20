@@ -497,7 +497,8 @@ def analyze(
                         },
                         400,
                     )
-                raise
+                else:
+                    raise
 
             demographies = [analysis] if not isinstance(analysis, list) else analysis
 
