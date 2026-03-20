@@ -16,8 +16,9 @@ requests (session_id is the dictionary key), so no locks are required.
 """
 
 import math
+from collections import deque
 from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Deque, List, Optional, Tuple
 
 EMOTIONS = ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
 
@@ -106,12 +107,13 @@ class TemporalAnalyzer:
         self.volatility_window = volatility_window
         self.fps_estimate = fps_estimate
 
-        # Internal state
+        # Internal state — bounded to prevent memory creep in long sessions
+        _MAX_HISTORY = 1000
         self._smoothed: Dict[str, float] = {}
-        self._raw_history: List[Dict[str, float]] = []
-        self._smoothed_history: List[Dict[str, float]] = []
-        self._timestamps: List[Optional[str]] = []
-        self._dominant_history: List[str] = []
+        self._raw_history: Deque[Dict[str, float]] = deque(maxlen=_MAX_HISTORY)
+        self._smoothed_history: Deque[Dict[str, float]] = deque(maxlen=_MAX_HISTORY)
+        self._timestamps: Deque[Optional[str]] = deque(maxlen=_MAX_HISTORY)
+        self._dominant_history: Deque[str] = deque(maxlen=_MAX_HISTORY)
         self._transitions: List[EmotionTransition] = []
         self._frame_count: int = 0
 

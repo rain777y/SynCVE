@@ -1,6 +1,7 @@
 # built-in dependencies
 import logging as _stdlib_logging
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Union
 
 # 3rd party dependencies
@@ -365,7 +366,7 @@ def analyze(
             enforce_flag = enforce_detection_flag if enforce_override is None else enforce_override
             try:
                 analysis = DeepFace.analyze(
-                    img_path=processed_img.copy(),
+                    img_path=processed_img,
                     actions=actions,
                     detector_backend=selected_backend,
                     enforce_detection=enforce_flag,
@@ -393,49 +394,50 @@ def analyze(
             # Determine input resolution for detector min-size filtering
             input_min_dim = min(processed_img.shape[:2]) if hasattr(processed_img, "shape") else 0
 
+            # --- Filter detectors by minimum input size ---
+            eligible_detectors = []
             for backend in detectors:
-                # Skip detectors whose minimum receptive field exceeds the input size
                 min_required = DETECTOR_MIN_SIZE.get(backend, 0)
                 if min_required and input_min_dim < min_required:
                     backend_errors[backend] = f"input too small ({input_min_dim}px < {min_required}px min)"
                     logger.info(f"Skipping {backend}: input {input_min_dim}px below minimum {min_required}px")
-                    continue
+                else:
+                    eligible_detectors.append(backend)
 
+            # --- Run eligible detectors in parallel for lower latency ---
+            def _run_detector(backend: str):
+                """Run a single detector with fallback logic. Returns (backend, analysis) or raises."""
                 try:
                     analysis = _analyze_single_backend(backend)
-                    successful_detectors.append(backend)
-                    backend_analyses.append(analysis)
-                    logger.info(f"Detector {backend} succeeded during ensemble analyze")
+                    return (backend, analysis)
                 except Exception as backend_err:
                     err_msg = _clean_error_message(str(backend_err))
                     if "Spoof detected" in str(backend_err):
-                        spoof_detected = True
-                        logger.warn(
-                            f"Detector {backend} rejected input via anti-spoofing: {backend_err}"
-                        )
+                        raise
+                    if "Face could not be detected" in err_msg or "Face could not be detected in numpy array" in err_msg:
+                        logger.warn(f"Detector {backend} could not find a face; retrying with enforce_detection=False")
+                        analysis = _analyze_single_backend(backend, enforce_override=False)
+                        analysis.setdefault("detection_fallback", True)
+                        return (backend, analysis)
+                    raise
+
+            with ThreadPoolExecutor(max_workers=len(eligible_detectors)) as executor:
+                futures = {executor.submit(_run_detector, b): b for b in eligible_detectors}
+                for future in as_completed(futures, timeout=30):
+                    backend = futures[future]
+                    try:
+                        det_name, analysis = future.result()
+                        successful_detectors.append(det_name)
+                        backend_analyses.append(analysis)
+                        logger.info(f"Detector {det_name} succeeded during ensemble analyze")
+                    except Exception as backend_err:
+                        err_msg = _clean_error_message(str(backend_err))
+                        if "Spoof detected" in str(backend_err):
+                            spoof_detected = True
+                            logger.warn(f"Detector {backend} rejected input via anti-spoofing: {backend_err}")
+                        else:
+                            logger.warn(f"Detector {backend} failed during ensemble analyze: {err_msg}")
                         backend_errors[backend] = err_msg
-                    elif "Face could not be detected" in err_msg or "Face could not be detected in numpy array" in err_msg:
-                        # Graceful degradation: retry once with enforce_detection disabled
-                        try:
-                            logger.warn(
-                                f"Detector {backend} could not find a face; retrying with enforce_detection=False"
-                            )
-                            analysis = _analyze_single_backend(backend, enforce_override=False)
-                            analysis.setdefault("detection_fallback", True)
-                            successful_detectors.append(backend)
-                            backend_analyses.append(analysis)
-                            logger.info(f"Detector {backend} succeeded after enforce_detection=False fallback")
-                            continue
-                        except Exception as retry_err:
-                            clean_retry = _clean_error_message(str(retry_err))
-                            backend_errors[backend] = clean_retry
-                            logger.warn(
-                                f"Detector {backend} failed after fallback disable: {clean_retry}"
-                            )
-                    else:
-                        backend_errors[backend] = err_msg
-                        logger.warn(f"Detector {backend} failed during ensemble analyze: {err_msg}")
-                    continue
 
             if not backend_analyses:
                 if spoof_detected:

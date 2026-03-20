@@ -161,9 +161,18 @@ def run_benchmark(args: argparse.Namespace) -> None:
     # ------------------------------------------------------------------
     samples = collect_image_paths(args.dataset)
     if args.limit > 0:
-        random.shuffle(samples)
-        samples = samples[: args.limit]
-        print(f"Limited to {len(samples)} images (--limit {args.limit})")
+        from collections import defaultdict
+        by_class = defaultdict(list)
+        for path, label in samples:
+            by_class[label].append((path, label))
+        per_class = max(1, args.limit // len(by_class))
+        stratified = []
+        for label, items in by_class.items():
+            random.shuffle(items)
+            stratified.extend(items[:per_class])
+        random.shuffle(stratified)
+        samples = stratified[:args.limit]
+        print(f"Limited to {len(samples)} images (--limit {args.limit}, stratified)")
 
     total = len(samples)
     if total == 0:

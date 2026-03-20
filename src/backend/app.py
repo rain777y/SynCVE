@@ -45,7 +45,7 @@ if gpus:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
         print(f"[OK] GPU Enabled: {len(gpus)} device(s), "
-              f"VRAM fraction={cfg.gpu.tf_memory_fraction}, "
+              f"memory_growth=True, "
               f"CPU threads={cfg.gpu.omp_num_threads}")
     except RuntimeError as e:
         print(f"[WARN] GPU config error: {e}")
@@ -112,21 +112,25 @@ def create_app():
     logger.info(f"SynCVE Backend v{DeepFace.__version__} ready")
 
     def _warmup_models():
-        """Pre-load DeepFace models to eliminate first-request latency."""
+        """Pre-load DeepFace models for all ensemble detectors to eliminate first-request latency."""
         import numpy as np
-        try:
-            dummy = np.zeros((224, 224, 3), dtype=np.uint8)
-            DeepFace.analyze(
-                img_path=dummy,
-                actions=["emotion"],
-                detector_backend="opencv",
-                enforce_detection=False,
-                silent=True,
-                anti_spoofing=False,
-            )
-            logger.info("DeepFace models warmed up successfully")
-        except Exception as e:
-            logger.warn(f"Model warmup failed (non-fatal): {e}")
+        dummy = np.zeros((224, 224, 3), dtype=np.uint8)
+        warmup_detectors = list(dict.fromkeys(
+            cfg.deepface.ensemble_detectors + [cfg.deepface.detector_backend]
+        ))
+        for det in warmup_detectors:
+            try:
+                DeepFace.analyze(
+                    img_path=dummy,
+                    actions=["emotion"],
+                    detector_backend=det,
+                    enforce_detection=False,
+                    silent=True,
+                    anti_spoofing=False,
+                )
+                logger.info(f"Warmed up detector: {det}")
+            except Exception as e:
+                logger.warn(f"Warmup failed for {det} (non-fatal): {e}")
 
     _warmup_models()
 

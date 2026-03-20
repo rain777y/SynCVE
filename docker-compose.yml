@@ -1,0 +1,111 @@
+# =============================================================================
+# SynCVE Docker Compose — Full Stack
+#
+# Usage:
+#   docker compose up -d                  # start all services
+#   docker compose up backend             # backend only (GPU)
+#   docker compose up frontend            # frontend only
+#   docker compose run eval               # run evaluation suite
+#   docker compose logs -f backend        # tail backend logs
+#
+# Prerequisites:
+#   - NVIDIA Container Toolkit installed (for GPU)
+#   - .env file in project root (copy from .env.example)
+#   - Docker Engine 24+ with Compose v2
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend: Flask + DeepFace + TensorFlow + PyTorch (GPU)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-base
+    container_name: syncve-backend
+    ports:
+      - "5005:5005"
+    env_file: .env
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - TF_CPP_MIN_LOG_LEVEL=2
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+      - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount settings at runtime (don't bake secrets)
+      - ./settings.yml:/app/settings.yml:ro
+      # Persist DeepFace model cache (~2GB) across rebuilds
+      - deepface-cache:/root/.deepface
+      # Persist eval results
+      - ./eval/results:/app/eval/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: ["python", "-m", "src.backend.app"]
+
+  # ---------------------------------------------------------------------------
+  # Frontend: React (production build) + nginx
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+      args:
+        REACT_APP_SERVICE_ENDPOINT: http://localhost:5005
+        REACT_APP_SUPABASE_URL: ${REACT_APP_SUPABASE_URL:-}
+        REACT_APP_SUPABASE_ANON_KEY: ${REACT_APP_SUPABASE_ANON_KEY:-}
+    container_name: syncve-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Eval: Run benchmarks & ablation studies (GPU, on-demand)
+  # ---------------------------------------------------------------------------
+  eval:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: eval
+    container_name: syncve-eval
+    env_file: .env
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - TF_CPP_MIN_LOG_LEVEL=2
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./settings.yml:/app/settings.yml:ro
+      - ./eval/results:/app/eval/results
+      - ./eval/datasets:/app/eval/datasets:ro
+      - ./eval/cache:/app/eval/cache
+      - deepface-cache:/root/.deepface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles: ["eval"]  # only starts with: docker compose --profile eval run eval
+    command: ["python", "-m", "eval.run_all"]
+
+volumes:
+  deepface-cache:
+    name: syncve-deepface-models
