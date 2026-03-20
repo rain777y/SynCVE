@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" fill="none">
+  <defs>
+    <linearGradient id="plBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c0a1d"/><stop offset="100%" stop-color="#141030"/>
+    </linearGradient>
+    <marker id="plArrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#818cf8"/>
+    </marker>
+    <linearGradient id="step1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f"/><stop offset="100%" stop-color="#162d4a"/>
+    </linearGradient>
+    <linearGradient id="step2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2d1e50"/><stop offset="100%" stop-color="#231840"/>
+    </linearGradient>
+    <linearGradient id="step3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a4a3a"/><stop offset="100%" stop-color="#143a2e"/>
+    </linearGradient>
+    <linearGradient id="step4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#5a3520"/><stop offset="100%" stop-color="#442818"/>
+    </linearGradient>
+    <linearGradient id="step5" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4a1942"/><stop offset="100%" stop-color="#3a1235"/>
+    </linearGradient>
+    <filter id="plShadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="880" height="200" rx="12" fill="url(#plBg)"/>
+  <text x="440" y="28" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" fill="#64748b" letter-spacing="3" font-weight="500">REAL-TIME EMOTION RECOGNITION PIPELINE</text>
+
+  <!-- Step 1: Capture -->
+  <g filter="url(#plShadow)" transform="translate(20,46)">
+    <rect width="140" height="132" rx="10" fill="url(#step1)" stroke="#3b82f6" stroke-width="0.8"/>
+    <text x="70" y="28" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="22" fill="#3b82f6">&#x1F4F7;</text>
+    <text x="70" y="52" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#93c5fd" font-weight="600">Capture</text>
+    <line x1="15" y1="62" x2="125" y2="62" stroke="#3b82f6" stroke-width="0.4" opacity="0.4"/>
+    <text x="70" y="80" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Webcam stream</text>
+    <text x="70" y="96" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">2s interval</text>
+    <text x="70" y="112" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Base64 encoding</text>
+    <text x="70" y="128" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Client-side crop</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <line x1="164" y1="112" x2="186" y2="112" stroke="#818cf8" stroke-width="1.5" marker-end="url(#plArrow)"/>
+
+  <!-- Step 2: Detect -->
+  <g filter="url(#plShadow)" transform="translate(190,46)">
+    <rect width="140" height="132" rx="10" fill="url(#step2)" stroke="#a855f7" stroke-width="0.8"/>
+    <text x="70" y="28" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="22" fill="#a855f7">&#x1F50D;</text>
+    <text x="70" y="52" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#c4b5fd" font-weight="600">Detect + Verify</text>
+    <line x1="15" y1="62" x2="125" y2="62" stroke="#a855f7" stroke-width="0.4" opacity="0.4"/>
+    <text x="70" y="80" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Ensemble detectors</text>
+    <text x="70" y="96" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">OpenCV 0.6 + SSD 0.4</text>
+    <text x="70" y="112" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Anti-spoofing guard</text>
+    <text x="70" y="128" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">CLAHE preprocess</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <line x1="334" y1="112" x2="356" y2="112" stroke="#818cf8" stroke-width="1.5" marker-end="url(#plArrow)"/>
+
+  <!-- Step 3: Analyze -->
+  <g filter="url(#plShadow)" transform="translate(360,46)">
+    <rect width="140" height="132" rx="10" fill="url(#step3)" stroke="#34d399" stroke-width="0.8"/>
+    <text x="70" y="28" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="22" fill="#34d399">&#x1F9E0;</text>
+    <text x="70" y="52" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#6ee7b7" font-weight="600">Analyze</text>
+    <line x1="15" y1="62" x2="125" y2="62" stroke="#34d399" stroke-width="0.4" opacity="0.4"/>
+    <text x="70" y="80" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">7-emotion classify</text>
+    <text x="70" y="96" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">EMA smoothing</text>
+    <text x="70" y="112" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Transition detect</text>
+    <text x="70" y="128" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Volatility window</text>
+  </g>
+
+  <!-- Arrow 3 -->
+  <line x1="504" y1="112" x2="526" y2="112" stroke="#818cf8" stroke-width="1.5" marker-end="url(#plArrow)"/>
+
+  <!-- Step 4: Report -->
+  <g filter="url(#plShadow)" transform="translate(530,46)">
+    <rect width="140" height="132" rx="10" fill="url(#step4)" stroke="#f59e0b" stroke-width="0.8"/>
+    <text x="70" y="28" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="22" fill="#f59e0b">&#x1F4CA;</text>
+    <text x="70" y="52" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#fcd34d" font-weight="600">Report</text>
+    <line x1="15" y1="62" x2="125" y2="62" stroke="#f59e0b" stroke-width="0.4" opacity="0.4"/>
+    <text x="70" y="80" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Gemini Flash text</text>
+    <text x="70" y="96" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Gemini Pro visual</text>
+    <text x="70" y="112" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Keyframe selection</text>
+    <text x="70" y="128" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Session summary</text>
+  </g>
+
+  <!-- Arrow 4 -->
+  <line x1="674" y1="112" x2="696" y2="112" stroke="#818cf8" stroke-width="1.5" marker-end="url(#plArrow)"/>
+
+  <!-- Step 5: Store -->
+  <g filter="url(#plShadow)" transform="translate(700,46)">
+    <rect width="155" height="132" rx="10" fill="url(#step5)" stroke="#ec4899" stroke-width="0.8"/>
+    <text x="77" y="28" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="22" fill="#ec4899">&#x2601;</text>
+    <text x="77" y="52" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#f9a8d4" font-weight="600">Store + Visualize</text>
+    <line x1="15" y1="62" x2="140" y2="62" stroke="#ec4899" stroke-width="0.4" opacity="0.4"/>
+    <text x="77" y="80" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Supabase PostgreSQL</text>
+    <text x="77" y="96" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Asset bucket upload</text>
+    <text x="77" y="112" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Recharts dashboard</text>
+    <text x="77" y="128" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9.5" fill="#94a3b8">Session history</text>
+  </g>
+</svg>

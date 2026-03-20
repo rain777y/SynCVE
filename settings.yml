@@ -27,10 +27,9 @@ client:
   detection_interval: 2000       # ms, frontend capture rate
 
 deepface:
-  # opencv is used instead of retinaface/mtcnn because Keras-based detectors
-  # have a TF/Keras KerasTensor compatibility issue on Python 3.13 in the
-  # Flask server context (they work in fresh processes but not in Flask).
-  detector_backend: "opencv"
+  # retinaface+mtcnn verified working in Docker (Python 3.10 + TF 2.10.1)
+  # on 2026-03-21. KerasTensor issue only affects Python 3.13.
+  detector_backend: "retinaface"
   model_name: "Facenet"
   distance_metric: "cosine"
   anti_spoofing: true
@@ -38,11 +37,11 @@ deepface:
   ensemble:
     enabled: true
     detectors:
-      - opencv
-      - ssd
+      - retinaface
+      - mtcnn
     weights:
-      opencv: 0.60
-      ssd: 0.40
+      retinaface: 0.50
+      mtcnn: 0.50
 
 gemini:
   text_model: "gemini-2.5-flash"

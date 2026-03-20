@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" fill="none">
+  <defs>
+    <linearGradient id="ftBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c0a1d"/><stop offset="100%" stop-color="#141030"/>
+    </linearGradient>
+    <filter id="ftShadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="880" height="300" rx="12" fill="url(#ftBg)"/>
+
+  <!-- Row 1 -->
+  <!-- Feature 1: Ensemble Detection -->
+  <g filter="url(#ftShadow)" transform="translate(20,20)">
+    <rect width="268" height="118" rx="10" fill="#1e293b" stroke="#6366f1" stroke-width="0.8"/>
+    <circle cx="34" cy="30" r="18" fill="#6366f1" opacity="0.15"/>
+    <text x="34" y="36" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="18">&#x1F441;</text>
+    <text x="62" y="32" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" fill="#a5b4fc" font-weight="600">Ensemble Detection</text>
+    <line x1="14" y1="48" x2="254" y2="48" stroke="#6366f1" stroke-width="0.4" opacity="0.3"/>
+    <text x="18" y="68" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">Weighted fusion of OpenCV + SSD detectors</text>
+    <text x="18" y="84" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">with configurable fallback to RetinaFace</text>
+    <text x="18" y="100" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">and MTCNN for challenging conditions.</text>
+  </g>
+
+  <!-- Feature 2: Anti-Spoofing -->
+  <g filter="url(#ftShadow)" transform="translate(306,20)">
+    <rect width="268" height="118" rx="10" fill="#1e293b" stroke="#f43f5e" stroke-width="0.8"/>
+    <circle cx="34" cy="30" r="18" fill="#f43f5e" opacity="0.15"/>
+    <text x="34" y="36" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="18">&#x1F6E1;</text>
+    <text x="62" y="32" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" fill="#fda4af" font-weight="600">Anti-Spoofing Guard</text>
+    <line x1="14" y1="48" x2="254" y2="48" stroke="#f43f5e" stroke-width="0.4" opacity="0.3"/>
+    <text x="18" y="68" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">FasNet-based liveness detection using</text>
+    <text x="18" y="84" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">TensorFlow/PyTorch hybrid inference.</text>
+    <text x="18" y="100" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">Blocks photos, screens, and printouts.</text>
+  </g>
+
+  <!-- Feature 3: GPU Accelerated -->
+  <g filter="url(#ftShadow)" transform="translate(592,20)">
+    <rect width="268" height="118" rx="10" fill="#1e293b" stroke="#76B900" stroke-width="0.8"/>
+    <circle cx="34" cy="30" r="18" fill="#76B900" opacity="0.15"/>
+    <text x="34" y="36" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="18">&#x26A1;</text>
+    <text x="62" y="32" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" fill="#a3e635" font-weight="600">GPU-First Architecture</text>
+    <line x1="14" y1="48" x2="254" y2="48" stroke="#76B900" stroke-width="0.4" opacity="0.3"/>
+    <text x="18" y="68" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">NVIDIA CUDA 11.8 with memory growth,</text>
+    <text x="18" y="84" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">model cache management, and automatic</text>
+    <text x="18" y="100" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">warmup pipeline. Sub-2s inference latency.</text>
+  </g>
+
+  <!-- Row 2 -->
+  <!-- Feature 4: Temporal Analysis -->
+  <g filter="url(#ftShadow)" transform="translate(20,158)">
+    <rect width="268" height="118" rx="10" fill="#1e293b" stroke="#0ea5e9" stroke-width="0.8"/>
+    <circle cx="34" cy="30" r="18" fill="#0ea5e9" opacity="0.15"/>
+    <text x="34" y="36" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="18">&#x1F4C8;</text>
+    <text x="62" y="32" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" fill="#7dd3fc" font-weight="600">Temporal Smoothing</text>
+    <line x1="14" y1="48" x2="254" y2="48" stroke="#0ea5e9" stroke-width="0.4" opacity="0.3"/>
+    <text x="18" y="68" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">EMA smoothing (&#x03B1;=0.2), emotion transition</text>
+    <text x="18" y="84" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">detection, and volatility window tracking</text>
+    <text x="18" y="100" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">optimized through ablation studies.</text>
+  </g>
+
+  <!-- Feature 5: AI Reports -->
+  <g filter="url(#ftShadow)" transform="translate(306,158)">
+    <rect width="268" height="118" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="0.8"/>
+    <circle cx="34" cy="30" r="18" fill="#f59e0b" opacity="0.15"/>
+    <text x="34" y="36" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="18">&#x1F916;</text>
+    <text x="62" y="32" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" fill="#fcd34d" font-weight="600">AI-Powered Reports</text>
+    <line x1="14" y1="48" x2="254" y2="48" stroke="#f59e0b" stroke-width="0.4" opacity="0.3"/>
+    <text x="18" y="68" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">Two-stage Gemini pipeline: Flash for</text>
+    <text x="18" y="84" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">structured text analysis, Pro for visual</text>
+    <text x="18" y="100" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">dashboard generation with keyframes.</text>
+  </g>
+
+  <!-- Feature 6: Cloud Native -->
+  <g filter="url(#ftShadow)" transform="translate(592,158)">
+    <rect width="268" height="118" rx="10" fill="#1e293b" stroke="#3ecf8e" stroke-width="0.8"/>
+    <circle cx="34" cy="30" r="18" fill="#3ecf8e" opacity="0.15"/>
+    <text x="34" y="36" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="18">&#x2601;</text>
+    <text x="62" y="32" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" fill="#86efac" font-weight="600">Cloud-Native Storage</text>
+    <line x1="14" y1="48" x2="254" y2="48" stroke="#3ecf8e" stroke-width="0.4" opacity="0.3"/>
+    <text x="18" y="68" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">Supabase PostgreSQL with RLS policies,</text>
+    <text x="18" y="84" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">asset bucket for reports, and full session</text>
+    <text x="18" y="100" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" fill="#94a3b8">history with user-scoped access control.</text>
+  </g>
+</svg>
