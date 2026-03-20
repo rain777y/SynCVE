@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 28" fill="none">
+  <rect width="140" height="28" rx="6" fill="#1e293b"/>
+  <rect width="72" height="28" rx="6" fill="#8b5cf6"/>
+  <rect x="66" width="6" height="28" fill="#8b5cf6"/>
+  <text x="36" y="18" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="600" fill="white">DeepFace</text>
+  <text x="106" y="18" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="500" fill="#94a3b8">0.0.99</text>
+</svg>

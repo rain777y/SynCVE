@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 280" fill="none">
+  <defs>
+    <linearGradient id="bannerBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0a1e"/>
+      <stop offset="50%" stop-color="#1a1145"/>
+      <stop offset="100%" stop-color="#0f0a1e"/>
+    </linearGradient>
+    <linearGradient id="accentLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#6366f1"/>
+      <stop offset="70%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="logoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e0e7ff"/>
+      <stop offset="100%" stop-color="#c4b5fd"/>
+    </linearGradient>
+    <filter id="bannerGlow">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="orbGlow1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbGlow2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="900" height="280" rx="16" fill="url(#bannerBg)"/>
+  <!-- Ambient glow orbs -->
+  <circle cx="200" cy="140" r="160" fill="url(#orbGlow1)"/>
+  <circle cx="700" cy="100" r="140" fill="url(#orbGlow2)"/>
+  <!-- Grid pattern -->
+  <g opacity="0.04" stroke="white" stroke-width="0.5">
+    <line x1="0" y1="70" x2="900" y2="70"/><line x1="0" y1="140" x2="900" y2="140"/>
+    <line x1="0" y1="210" x2="900" y2="210"/>
+    <line x1="150" y1="0" x2="150" y2="280"/><line x1="300" y1="0" x2="300" y2="280"/>
+    <line x1="450" y1="0" x2="450" y2="280"/><line x1="600" y1="0" x2="600" y2="280"/>
+    <line x1="750" y1="0" x2="750" y2="280"/>
+  </g>
+  <!-- Accent line top -->
+  <rect x="0" y="0" width="900" height="3" rx="1.5" fill="url(#accentLine)"/>
+  <!-- Logo icon -->
+  <g transform="translate(80, 80)">
+    <circle cx="60" cy="60" r="50" fill="url(#logoBg)" opacity="0.9"/>
+    <path d="M24 60c0 0 16-22 36-22s36 22 36 22-16 22-36 22S24 60 24 60z" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="60" cy="60" r="12" fill="white" opacity="0.9"/>
+    <circle cx="60" cy="60" r="8.5" fill="#1e1b4b"/>
+    <circle cx="57" cy="57" r="2.5" fill="white" opacity="0.8"/>
+    <path d="M42 76 Q51 84 60 81 Q69 78 78 76" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <!-- Title text -->
+  <text x="260" y="118" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="52" font-weight="700" fill="url(#textGrad)" letter-spacing="-1">SynCVE</text>
+  <!-- Subtitle -->
+  <text x="260" y="155" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="17" fill="#a5b4fc" letter-spacing="3" font-weight="400">SYNCHRONIZED COMPUTER VISION EMOTION</text>
+  <!-- Description -->
+  <text x="260" y="190" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="14" fill="#94a3b8">GPU-accelerated real-time emotion recognition with DeepFace,</text>
+  <text x="260" y="210" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="14" fill="#94a3b8">anti-spoofing, temporal analysis, and AI-powered reports.</text>
+  <!-- Accent line bottom -->
+  <rect x="0" y="277" width="900" height="3" rx="1.5" fill="url(#accentLine)"/>
+  <!-- Decorative dots (neural network feel) -->
+  <g opacity="0.2" fill="white">
+    <circle cx="730" cy="80" r="2"/><circle cx="760" cy="95" r="1.5"/>
+    <circle cx="790" cy="75" r="1.8"/><circle cx="820" cy="100" r="1.2"/>
+    <circle cx="750" cy="120" r="1"/><circle cx="810" cy="130" r="1.5"/>
+    <circle cx="770" cy="150" r="2"/><circle cx="840" cy="85" r="1"/>
+  </g>
+  <g opacity="0.1" stroke="white" stroke-width="0.5">
+    <line x1="730" y1="80" x2="760" y2="95"/><line x1="760" y1="95" x2="790" y2="75"/>
+    <line x1="790" y1="75" x2="820" y2="100"/><line x1="750" y1="120" x2="770" y2="150"/>
+    <line x1="810" y1="130" x2="770" y2="150"/><line x1="760" y1="95" x2="750" y2="120"/>
+  </g>
+</svg>

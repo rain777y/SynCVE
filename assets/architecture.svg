@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 520" fill="none">
+  <defs>
+    <linearGradient id="archBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c0a1d"/>
+      <stop offset="100%" stop-color="#141030"/>
+    </linearGradient>
+    <linearGradient id="cardFrontend" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f"/><stop offset="100%" stop-color="#162d4a"/>
+    </linearGradient>
+    <linearGradient id="cardBackend" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3b1f5e"/><stop offset="100%" stop-color="#2d1748"/>
+    </linearGradient>
+    <linearGradient id="cardGpu" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a4a3a"/><stop offset="100%" stop-color="#143a2e"/>
+    </linearGradient>
+    <linearGradient id="cardStorage" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#5a3520"/><stop offset="100%" stop-color="#442818"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="cardShadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <marker id="arrowHead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#818cf8"/>
+    </marker>
+    <marker id="arrowHeadGold" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#fbbf24"/>
+    </marker>
+  </defs>
+  <!-- Background -->
+  <rect width="880" height="520" rx="12" fill="url(#archBg)"/>
+  <!-- Title -->
+  <text x="440" y="38" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="18" font-weight="600" fill="#e0e7ff" letter-spacing="2">SYSTEM ARCHITECTURE</text>
+  <line x1="300" y1="48" x2="580" y2="48" stroke="#6366f1" stroke-width="1" opacity="0.4"/>
+
+  <!-- ===== FRONTEND CARD ===== -->
+  <g filter="url(#cardShadow)">
+    <rect x="30" y="70" width="240" height="200" rx="10" fill="url(#cardFrontend)" stroke="#3b82f6" stroke-width="1" opacity="0.9"/>
+  </g>
+  <text x="150" y="98" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="600" fill="#60a5fa">Frontend</text>
+  <text x="150" y="114" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" fill="#94a3b8">React 18 + nginx :3000</text>
+  <line x1="50" y1="124" x2="250" y2="124" stroke="#3b82f6" stroke-width="0.5" opacity="0.3"/>
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#cbd5e1">
+    <text x="52" y="145">Webcam Capture</text>
+    <text x="52" y="165">Emotion Dashboard</text>
+    <text x="52" y="185">Session Management</text>
+    <text x="52" y="205">Recharts Visualizations</text>
+    <text x="52" y="225">Dark Glassmorphism UI</text>
+    <text x="52" y="245">Supabase Auth SDK</text>
+  </g>
+
+  <!-- ===== BACKEND CARD ===== -->
+  <g filter="url(#cardShadow)">
+    <rect x="320" y="70" width="240" height="200" rx="10" fill="url(#cardBackend)" stroke="#a855f7" stroke-width="1" opacity="0.9"/>
+  </g>
+  <text x="440" y="98" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="600" fill="#c084fc">Backend API</text>
+  <text x="440" y="114" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" fill="#94a3b8">Flask + DeepFace :5005</text>
+  <line x1="340" y1="124" x2="540" y2="124" stroke="#a855f7" stroke-width="0.5" opacity="0.3"/>
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#cbd5e1">
+    <text x="342" y="145">/analyze — Emotion Detection</text>
+    <text x="342" y="165">/session/* — Lifecycle Mgmt</text>
+    <text x="342" y="185">/session/report/* — AI Reports</text>
+    <text x="342" y="205">Anti-Spoofing (FasNet)</text>
+    <text x="342" y="225">Ensemble Detectors</text>
+    <text x="342" y="245">Temporal Smoothing (EMA)</text>
+  </g>
+
+  <!-- ===== GPU / ML CARD ===== -->
+  <g filter="url(#cardShadow)">
+    <rect x="610" y="70" width="240" height="200" rx="10" fill="url(#cardGpu)" stroke="#34d399" stroke-width="1" opacity="0.9"/>
+  </g>
+  <text x="730" y="98" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="600" fill="#34d399">GPU / ML Engine</text>
+  <text x="730" y="114" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" fill="#94a3b8">CUDA 11.8 + cuDNN 8</text>
+  <line x1="630" y1="124" x2="830" y2="124" stroke="#34d399" stroke-width="0.5" opacity="0.3"/>
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#cbd5e1">
+    <text x="632" y="145">TensorFlow 2.10.1</text>
+    <text x="632" y="165">PyTorch 2.1 + cu118</text>
+    <text x="632" y="185">DeepFace (Facenet/ArcFace)</text>
+    <text x="632" y="205">RetinaFace / MTCNN / SSD</text>
+    <text x="632" y="225">Memory Growth + Cache</text>
+    <text x="632" y="245">Model Warm-up Pipeline</text>
+  </g>
+
+  <!-- ===== STORAGE CARD ===== -->
+  <g filter="url(#cardShadow)">
+    <rect x="175" y="320" width="240" height="170" rx="10" fill="url(#cardStorage)" stroke="#f59e0b" stroke-width="1" opacity="0.9"/>
+  </g>
+  <text x="295" y="348" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="600" fill="#fbbf24">Storage &amp; AI</text>
+  <text x="295" y="364" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" fill="#94a3b8">Supabase + Gemini</text>
+  <line x1="195" y1="374" x2="395" y2="374" stroke="#f59e0b" stroke-width="0.5" opacity="0.3"/>
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#cbd5e1">
+    <text x="197" y="395">Supabase PostgreSQL (RLS)</text>
+    <text x="197" y="415">syn_cve_assets Bucket</text>
+    <text x="197" y="435">Gemini Flash — Text Reports</text>
+    <text x="197" y="455">Gemini Pro — Visual Reports</text>
+    <text x="197" y="475">Session &amp; Emotion Logs</text>
+  </g>
+
+  <!-- ===== DOCKER CARD ===== -->
+  <g filter="url(#cardShadow)">
+    <rect x="465" y="320" width="240" height="170" rx="10" fill="#1a1a2e" stroke="#64748b" stroke-width="1" opacity="0.9"/>
+  </g>
+  <text x="585" y="348" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="600" fill="#94a3b8">Docker Deployment</text>
+  <text x="585" y="364" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" fill="#64748b">docker-compose + NVIDIA</text>
+  <line x1="485" y1="374" x2="685" y2="374" stroke="#64748b" stroke-width="0.5" opacity="0.3"/>
+  <g font-family="'Segoe UI', system-ui, sans-serif" font-size="11" fill="#cbd5e1">
+    <text x="487" y="395">Multi-stage Dockerfile</text>
+    <text x="487" y="415">nginx Reverse Proxy</text>
+    <text x="487" y="435">GPU Passthrough (NVIDIA)</text>
+    <text x="487" y="455">DeepFace Model Volume</text>
+    <text x="487" y="475">Health Checks &amp; Restart</text>
+  </g>
+
+  <!-- ===== ARROWS ===== -->
+  <!-- Frontend → Backend -->
+  <line x1="270" y1="170" x2="318" y2="170" stroke="#818cf8" stroke-width="1.5" marker-end="url(#arrowHead)" stroke-dasharray="4,3"/>
+  <text x="294" y="162" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#818cf8">REST</text>
+  <!-- Backend → GPU -->
+  <line x1="560" y1="170" x2="608" y2="170" stroke="#818cf8" stroke-width="1.5" marker-end="url(#arrowHead)" stroke-dasharray="4,3"/>
+  <text x="584" y="162" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#818cf8">CUDA</text>
+  <!-- Backend → Storage -->
+  <line x1="380" y1="272" x2="340" y2="318" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowHeadGold)" stroke-dasharray="4,3"/>
+  <text x="345" y="294" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#fbbf24">API</text>
+  <!-- Backend → Docker -->
+  <line x1="480" y1="272" x2="540" y2="318" stroke="#64748b" stroke-width="1" marker-end="url(#arrowHead)" stroke-dasharray="4,3" opacity="0.5"/>
+</svg>
