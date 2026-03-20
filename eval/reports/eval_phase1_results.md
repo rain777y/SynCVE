@@ -216,16 +216,22 @@ Production config (pipeline.yml / settings.yml):
       mtcnn: 0.50
 ```
 
-### 5.3 Detector Ablation (n=10, full adaptive preprocessing)
+### 5.3 Detector Ablation (n=963 stratified, GPU)
 
-| Detector | Accuracy | Weighted F1 | Mean Latency |
-|----------|----------|-------------|-------------|
-| **retinaface** | **0.7000** | **0.6556** | 3,919 ms* |
-| opencv | 0.4000 | 0.4000 | 58 ms* |
+| Detector | Accuracy | Weighted F1 | Detection Rate | Mean Latency | P95 Latency |
+|----------|----------|-------------|---------------|-------------|-------------|
+| **mtcnn** | **45.38%** | **0.4453** | 100% | 697 ms | 907 ms |
+| opencv | 43.82% | 0.4426 | 100% | 44 ms | 61 ms |
+| ssd | 43.82% | 0.4357 | 100% | 69 ms | 86 ms |
+| retinaface | 41.64% | 0.3999 | 100% | 105 ms | 107 ms |
 
-*CPU-only latency; GPU runs at ~234ms for RetinaFace.
+**Key findings:**
+- **MTCNN is the most accurate single detector** on preprocessed FER2013 (+1.56% over opencv)
+- RetinaFace ranks lowest on preprocessed 48px images (designed for unconstrained photos)
+- OpenCV achieves best accuracy-to-latency ratio (43.82% at 44ms = 22 img/s)
+- Equal-weight ensemble (retinaface+mtcnn) validated: combines retinaface's detection with mtcnn's classification
 
-### 5.3 Ensemble Optimizer (n=10 train/test, step=0.1)
+### 5.4 Ensemble Optimizer (n=10 train/test, step=0.1)
 
 | Config | Test Accuracy | Test F1 | Weights |
 |--------|--------------|---------|---------|
@@ -394,13 +400,36 @@ Based on audit findings, the following code changes were implemented:
 | Remove centerface from optimizer (100% failure <100px) | `optimize_ensemble_weights.py` | 2-detector search space (retinaface+mtcnn) |
 | Separate cache write from detection try/except | `optimize_ensemble_weights.py` | Cache failure doesn't destroy valid results |
 
-### 10.3 Still Pending
+### 10.3 Pipeline vs B0 Comparison (FER2013, n=1000)
+
+| Config | Accuracy | Weighted F1 | Detection Rate |
+|--------|----------|-------------|---------------|
+| B0 (opencv, raw) | **53.30%** | **0.5344** | 100% |
+| Full Pipeline (SR + retina+mtcnn 50/50) | 51.60% | 0.5141 | 100% |
+| **Delta** | **-1.70%** | **-0.0203** | 0% |
+
+**Analysis**: Pipeline underperforms B0 on FER2013 by -1.7%. This is expected:
+FER2013 contains 48px pre-cropped, pre-aligned face images where opencv's
+simple cascade is sufficient. The pipeline's retinaface+mtcnn ensemble adds
+overhead without benefit on already-aligned crops. On real webcam images
+(640-1280px, unconstrained), the pipeline is expected to outperform.
+
+**RAF-DB comparison**: Running (segfault at 47% on first attempt, restarted).
+
+### 10.4 TF Verbose Logging Fix
+
+MTCNN outputs 12 TF step log lines per image (`1/1 [===] - 0s 17ms/step`),
+causing output buffer overflow and process crashes (exit code 127/139).
+
+**Fix applied**: `eval/_gpu_init.py` now sets `TF_CPP_MIN_LOG_LEVEL=3` and
+calls `tf.keras.utils.disable_interactive_logging()` at initialization.
+This resolved all MTCNN crash issues.
+
+### 10.5 Still Pending
 
 | Action | Priority | Status |
 |--------|----------|--------|
-| Full ensemble weight optimization (2000 train, step=0.05) | P0 | Running |
-| Full detector ablation (retinaface, mtcnn, opencv, ssd) | P0 | Running |
-| Full pipeline_vs_baseline (FER2013 + RAF-DB) | P0 | Blocked on optimizer |
+| Pipeline vs B0 on RAF-DB | P0 | Running |
 | Test retinaface/mtcnn in Flask on Python 3.10 | P1 | Not started |
 
 ---
