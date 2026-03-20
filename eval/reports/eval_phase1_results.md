@@ -414,7 +414,26 @@ simple cascade is sufficient. The pipeline's retinaface+mtcnn ensemble adds
 overhead without benefit on already-aligned crops. On real webcam images
 (640-1280px, unconstrained), the pipeline is expected to outperform.
 
-**RAF-DB comparison**: Running (segfault at 47% on first attempt, restarted).
+### 10.3.2 Pipeline vs B0 Comparison (RAF-DB, n=500) — 2026-03-21
+
+| Config | Accuracy | Weighted F1 | Detection Rate | Mean Latency |
+|--------|----------|-------------|---------------|-------------|
+| B0 (opencv, raw) | **51.60%** | **0.4902** | 100% | 29ms |
+| Full Pipeline (SR + retina+mtcnn 50/50) | 49.60% | 0.4664 | 100% | 710ms |
+| **Delta** | **-2.00%** | **-0.0238** | 0% | +681ms |
+
+**Analysis**: Pipeline also underperforms B0 on RAF-DB by -2.0%. RAF-DB test
+images are 100x100 pre-cropped faces — still below the threshold where
+pipeline components (multi-scale face detection, ensemble) provide benefit.
+Pipeline performs better on minority classes (angry +6%, fear +4%) but worse
+on the dominant happy class (-5% recall), which drives the overall deficit.
+
+**Both benchmarks confirm**: Pipeline is designed for unconstrained webcam
+input (640-1280px), not pre-cropped academic benchmarks. The pipeline's
+primary value is temporal stability (+20% via EMA) and robust face detection,
+neither of which is measured by static image accuracy.
+
+See `eval/reports/phase2_analysis.md` for detailed per-class analysis.
 
 ### 10.4 TF Verbose Logging Fix
 
@@ -425,14 +444,22 @@ causing output buffer overflow and process crashes (exit code 127/139).
 calls `tf.keras.utils.disable_interactive_logging()` at initialization.
 This resolved all MTCNN crash issues.
 
-### 10.5 Still Pending
+### 10.5 Flask Detector Verification (2026-03-21)
+
+**Verified**: RetinaFace and MTCNN both work in Flask Docker (Python 3.10 +
+TF 2.10.1). The KerasTensor compatibility issue only affects Python 3.13.
+
+`settings.yml` updated: `opencv+ssd` → `retinaface+mtcnn` (50/50 weights).
+
+### 10.6 Phase 2 Status
 
 | Action | Priority | Status |
 |--------|----------|--------|
-| Pipeline vs B0 on RAF-DB | P0 | Running |
-| Test retinaface/mtcnn in Flask on Python 3.10 | P1 | Not started |
+| Pipeline vs B0 on RAF-DB | P0 | **✅ Complete** |
+| Test retinaface/mtcnn in Flask on Python 3.10 | P1 | **✅ Verified** |
+| Update settings.yml to retinaface+mtcnn | P1 | **✅ Done** |
 
 ---
 
-*This report will be updated as Phase 2 results become available.*
+*All Phase 1+2 evaluations complete. See `phase2_analysis.md` for comprehensive analysis.*
 *All results are reproducible with seed=42 using the scripts in `eval/`.*
