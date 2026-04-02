@@ -291,7 +291,7 @@ class TemporalAnalyzer:
         if self._frame_count < 2:
             return {}
 
-        window = self._smoothed_history[-self.volatility_window:]
+        window = list(self._smoothed_history)[-self.volatility_window:]
         all_emotions = set()
         for snap in window:
             all_emotions.update(snap.keys())
@@ -344,9 +344,9 @@ class TemporalAnalyzer:
     def reset(self):
         """Clear all state for reuse."""
         self._smoothed = {}
-        self._raw_history = []
-        self._smoothed_history = []
-        self._timestamps = []
-        self._dominant_history = []
+        self._raw_history.clear()
+        self._smoothed_history.clear()
+        self._timestamps.clear()
+        self._dominant_history.clear()
         self._transitions = []
         self._frame_count = 0

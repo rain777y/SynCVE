@@ -109,3 +109,6 @@ temp/
 # ---------- Claude / AI Agent ----------
 .agent/
 .claude/
+
+# ---------- Internal Scripts (not for partner repo) ----------
+scripts/sync-to-partner.sh
