@@ -79,7 +79,8 @@ FROM node:18-alpine AS frontend-build
 
 WORKDIR /app/src/frontend
 COPY src/frontend/package.json src/frontend/package-lock.json* ./
-RUN npm install --legacy-peer-deps
+RUN npm install --legacy-peer-deps && \
+    npm install ajv@8 --legacy-peer-deps
 
 COPY src/frontend/ .
 
