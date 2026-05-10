@@ -227,8 +227,19 @@ def build_markdown(report_data: Dict[str, Any]) -> str:
     md.append(f"| Reactivity (events/min) | {_fmt(metrics.get('reactivity_events_per_min'))} |")
     md.append(f"| Suppression index | {_fmt(metrics.get('suppression_index'))} |")
     md.append(f"| Incongruence index | {_fmt(metrics.get('incongruence_index'))} |")
-    md.append(f"| High-confidence events | {metrics.get('high_confidence_event_count', 0)} / {metrics.get('event_count', 0)} |")
+    event_count = int(metrics.get("event_count") or 0)
+    if event_count > 0:
+        high_conf = f"{metrics.get('high_confidence_event_count', 0)} / {event_count}"
+    else:
+        high_conf = "N/A (no detected events)"
+    md.append(f"| High-confidence events | {high_conf} |")
     md.append("")
+    if event_count == 0:
+        md.append(
+            "_Event-dependent metrics are not applicable because no consensus "
+            "event crossed the current sensitivity thresholds._"
+        )
+        md.append("")
 
     if metrics.get("expressive_range_per_emotion"):
         md.append("### Expressive range per emotion")
