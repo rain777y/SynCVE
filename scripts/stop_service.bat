@@ -55,6 +55,10 @@ call :findPidsOnPort %FRONTEND_PORT% FRONTEND_FINAL_PIDS
 call :reportStatus "Frontend after shutdown" "%FRONTEND_FINAL_PIDS%" %FRONTEND_PORT%
 echo.
 
+rem === Launcher cleanup ===
+call :cleanupLauncherProcesses
+timeout /t 1 >nul 2>&1
+
 rem === Final status ===
 set "EXIT_CODE=0"
 if defined BACKEND_FINAL_PIDS (
@@ -111,4 +115,8 @@ for %%P in (%PID_LIST%) do (
     )
 )
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ids = '%PID_LIST%'.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries); foreach ($id in $ids) { Stop-Process -Id ([int]$id) %PS_FORCE% -ErrorAction SilentlyContinue }" >nul 2>&1
+exit /b 0
+
+:cleanupLauncherProcesses
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$patterns = @('scripts\start_backend.bat','scripts\start_frontend.bat','src.backend.app','react-scripts start','conda run -n SynCVE'); Get-CimInstance Win32_Process | Where-Object { $cmd = $_.CommandLine; $cmd -and ($patterns | Where-Object { $cmd -like ('*' + $_ + '*') }) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 exit /b 0
