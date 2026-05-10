@@ -37,6 +37,19 @@ const buildReportFromSession = (session) => {
     return null;
 };
 
+const isErrorSummary = (summary) => {
+    const text = String(summary || '').trim().toLowerCase();
+    return !text || text.startsWith('error generating report') || text.startsWith('error:');
+};
+
+const getSessionSynopsis = (session) => {
+    const pauseSummary = session.metadata?.pause_report?.text_summary;
+    if (pauseSummary && !isErrorSummary(pauseSummary)) return pauseSummary;
+    if (session.summary && !isErrorSummary(session.summary)) return session.summary;
+    if (pauseSummary) return pauseSummary;
+    return '';
+};
+
 const History = () => {
     const { user, isAuthenticated, signInWithGoogle, signOut, loading: authLoading } = useAuth();
     const navigate = useNavigate();
@@ -250,6 +263,7 @@ const History = () => {
                             const stability = session.temporal_summary?.stability_score;
                             const stabilityPct = stability != null ? Math.round(stability * 100) : null;
                             const num = String(sessions.length - idx).padStart(3, '0');
+                            const synopsis = getSessionSynopsis(session);
                             return (
                                 <li
                                     key={session.id}
@@ -261,7 +275,7 @@ const History = () => {
                                     <span className="col-num mono">{num}</span>
                                     <span className="col-date mono">{formatDate(session.created_at)}</span>
                                     <span className="col-summary">
-                                        {session.summary || <em className="muted">— no synopsis —</em>}
+                                        {synopsis || <em className="muted">— no synopsis —</em>}
                                     </span>
                                     <span className="col-stability">
                                         {stabilityPct != null ? (
@@ -309,7 +323,7 @@ const History = () => {
                                     <div className="detail-section">
                                         <h3>Summary</h3>
                                         <p style={{ lineHeight: '1.6', color: 'var(--text-secondary)' }}>
-                                            {selectedSession.summary || "No summary generated for this session."}
+                                            {getSessionSynopsis(selectedSession) || "No summary generated for this session."}
                                         </p>
                                     </div>
 

@@ -125,6 +125,7 @@ const SessionReport = ({ report, onResume, onStop, sessionId = null, serviceEndp
   const dominant = stats_summary.dominant || metrics.dominant || 'neutral';
   const dominantScore = (stats_summary.score || metrics.dominant_score || 0);
   const samples = metrics.samples || 0;
+  const clinicalEventCount = clinicalMetrics?.event_count || 0;
 
   // Bar chart data (sorted)
   const barData = emotion_ranking.map(({ emotion, score }) => ({
@@ -382,6 +383,7 @@ const SessionReport = ({ report, onResume, onStop, sessionId = null, serviceEndp
               <Metric
                 label="Reactivity (events/min)"
                 value={clinicalMetrics.reactivity_events_per_min}
+                hint={clinicalEventCount === 0 ? 'No event-level changes detected.' : null}
               />
               <Metric
                 label="Suppression index"
@@ -393,8 +395,11 @@ const SessionReport = ({ report, onResume, onStop, sessionId = null, serviceEndp
               />
               <Metric
                 label="High-conf events"
-                value={`${clinicalMetrics.high_confidence_event_count || 0} / ${clinicalMetrics.event_count || 0}`}
+                value={clinicalEventCount > 0
+                  ? `${clinicalMetrics.high_confidence_event_count || 0} / ${clinicalEventCount}`
+                  : 'N/A'}
                 isString
+                hint={clinicalEventCount === 0 ? 'Requires at least one detected event.' : null}
               />
             </div>
           )}

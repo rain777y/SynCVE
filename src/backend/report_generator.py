@@ -257,6 +257,15 @@ Return exactly this JSON (no markdown fences):
 
     except Exception as e:
         logger.error(f"Error generating report: {e}")
+        try:
+            fast = generate_fast_report(session_id)
+            return {
+                "summary": fast.get("text_summary", "Session completed."),
+                "recommendations": "",
+                "fallback_reason": str(e),
+            }
+        except Exception as fallback_err:
+            logger.error(f"Fast report fallback failed: {fallback_err}")
         return {"summary": "Error generating report.", "recommendations": str(e)}
 
 

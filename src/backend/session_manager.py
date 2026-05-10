@@ -654,6 +654,21 @@ def start_session(
         return {"error": str(e)}
 
 
+def _looks_like_report_error(summary: Optional[str]) -> bool:
+    text = (summary or "").strip().lower()
+    return not text or text.startswith("error generating report") or text.startswith("error:")
+
+
+def _pause_report_summary(metadata: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not isinstance(metadata, dict):
+        return None
+    pause_report = metadata.get("pause_report")
+    if not isinstance(pause_report, dict):
+        return None
+    summary = pause_report.get("text_summary") or pause_report.get("summary")
+    return summary if isinstance(summary, str) and summary.strip() else None
+
+
 def stop_session(session_id: str) -> Dict[str, Any]:
     """End the session and generate the final text report."""
     supabase = get_supabase_client()
@@ -663,10 +678,40 @@ def stop_session(session_id: str) -> Dict[str, Any]:
     cfg = get_config().gemini
 
     try:
+        existing_session: Dict[str, Any] = {}
+        try:
+            existing_resp = (
+                supabase.table("sessions")
+                .select("metadata,summary,recommendations")
+                .eq("id", session_id)
+                .single()
+                .execute()
+            )
+            existing_session = existing_resp.data or {}
+        except Exception as fetch_err:
+            logger.warn(f"Could not fetch existing session before stop: {fetch_err}")
+
         # Capture temporal summary BEFORE cleanup destroys the analyzer
         temporal_summary = get_temporal_summary(session_id)
 
         report = generate_report(session_id)
+        existing_summary = existing_session.get("summary") or ""
+        existing_recommendations = existing_session.get("recommendations") or ""
+        pause_summary = _pause_report_summary(existing_session.get("metadata"))
+        if _looks_like_report_error(report.get("summary")) and pause_summary:
+            report = {
+                **report,
+                "summary": pause_summary,
+                "recommendations": existing_recommendations,
+                "fallback_reason": report.get("recommendations") or report.get("fallback_reason"),
+            }
+        elif _looks_like_report_error(report.get("summary")) and existing_summary and not _looks_like_report_error(existing_summary):
+            report = {
+                **report,
+                "summary": existing_summary,
+                "recommendations": existing_recommendations,
+                "fallback_reason": report.get("recommendations") or report.get("fallback_reason"),
+            }
 
         update_payload = _to_json_safe({
             "ended_at": datetime.now(timezone.utc).isoformat(),
@@ -1050,7 +1095,13 @@ def get_recent_sessions(
             query = query.eq("user_id", user_id)
 
         response = query.execute()
-        return {"sessions": response.data}
+        sessions = response.data or []
+        for session in sessions:
+            pause_summary = _pause_report_summary(session.get("metadata"))
+            if pause_summary and _looks_like_report_error(session.get("summary")):
+                session["summary"] = pause_summary
+                session["summary_source"] = "pause_report"
+        return {"sessions": sessions}
     except Exception as e:
         logger.error(f"Error fetching sessions: {e}")
         return {"error": str(e)}
