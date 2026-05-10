@@ -101,6 +101,8 @@ exit /b 0
 set "MODE=%~1"
 set "PID_LIST=%~2"
 if "%PID_LIST%"=="" exit /b 0
+set "PS_FORCE="
+if /i "%MODE%"=="FORCE" set "PS_FORCE=-Force"
 for %%P in (%PID_LIST%) do (
     if /i "%MODE%"=="FORCE" (
         taskkill /PID %%~P /T /F >nul 2>&1
@@ -108,4 +110,5 @@ for %%P in (%PID_LIST%) do (
         taskkill /PID %%~P /T >nul 2>&1
     )
 )
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ids = '%PID_LIST%'.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries); foreach ($id in $ids) { Stop-Process -Id ([int]$id) %PS_FORCE% -ErrorAction SilentlyContinue }" >nul 2>&1
 exit /b 0
