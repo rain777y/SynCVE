@@ -132,7 +132,10 @@ def create_app():
             except Exception as e:
                 logger.warn(f"Warmup failed for {det} (non-fatal): {e}")
 
-    _warmup_models()
+    if cfg.deepface.startup_warmup:
+        _warmup_models()
+    else:
+        logger.info("Startup model warmup skipped; models will load on first analysis request")
 
     return app
 

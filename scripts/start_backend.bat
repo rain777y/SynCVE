@@ -118,7 +118,7 @@ nvidia-smi >nul 2>&1
 if not errorlevel 1 (
     set "GPU_STATUS=CUDA"
     echo %OK% GPU detected via nvidia-smi.
-    for /f "tokens=*" %%G in ('nvidia-smi --query-gpu=name --format=csv,noheader 2^>nul') do (
+    for /f "skip=1 tokens=*" %%G in ('nvidia-smi --query-gpu=name --format=csv 2^>nul') do (
         echo       %%G
     )
 )

@@ -185,6 +185,7 @@ class DeepFaceConfig:
     model_name: str = "Facenet"
     distance_metric: str = "cosine"
     anti_spoofing: bool = True
+    startup_warmup: bool = False
     confidence_threshold: float = 0.1
     enable_ensemble: bool = True
     ensemble_detectors: list = field(
@@ -367,6 +368,7 @@ def load_config() -> AppConfig:
             model_name=_get(cfg, "deepface", "model_name", default="Facenet"),
             distance_metric=_get(cfg, "deepface", "distance_metric", default="cosine"),
             anti_spoofing=bool(_get(cfg, "deepface", "anti_spoofing", default=True)),
+            startup_warmup=bool(_get(cfg, "deepface", "startup_warmup", default=False)),
             confidence_threshold=float(_get(cfg, "deepface", "confidence_threshold", default=0.1)),
             enable_ensemble=bool(_get(ens, "enabled", default=True)),
             ensemble_detectors=ens_detectors,

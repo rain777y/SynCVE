@@ -34,6 +34,7 @@ deepface:
   model_name: "Facenet"
   distance_metric: "cosine"
   anti_spoofing: true
+  startup_warmup: false          # keep API reachable; models lazy-load on first analysis
   confidence_threshold: 0.1
   ensemble:
     enabled: true
