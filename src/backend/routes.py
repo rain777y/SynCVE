@@ -525,7 +525,7 @@ def get_session_events(session_id: str):
     return result
 
 
-@blueprint.route("/session/<session_id>/clinical_metrics", methods=["POST"])
+@blueprint.route("/session/<session_id>/clinical_metrics", methods=["GET", "POST"])
 def get_session_clinical_metrics(session_id: str):
     """
     Compute clinical metrics (valence drift, affect blunting, reactivity,
@@ -542,7 +542,7 @@ def get_session_clinical_metrics(session_id: str):
           ]
         }
     """
-    body = request.get_json(silent=True) or {}
+    body = (request.get_json(silent=True) or {}) if request.method == "POST" else {}
     triggers = body.get("triggers")
     asr_segments = body.get("asr_segments")
     if triggers is not None and not isinstance(triggers, list):
@@ -575,6 +575,11 @@ def get_clinical_report(session_id: str):
         result = build_clinical_report(session_id, fmt=fmt)
     except ValueError as e:
         return {"error": str(e)}, 400
+    except RuntimeError as e:
+        return {"error": str(e), "code": "clinical_report_unavailable"}, 503
+    except Exception as e:
+        logger.error(f"Failed to generate clinical report for {session_id}: {e}")
+        return {"error": "Failed to generate clinical report", "code": "clinical_report_failed"}, 500
     if fmt == "md":
         if request.args.get("download") in {"1", "true", "yes"}:
             from flask import Response

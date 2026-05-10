@@ -301,6 +301,7 @@ const History = () => {
                                     onResume={null}
                                     onStop={null}
                                     sessionId={selectedSession?.id}
+                                    serviceEndpoint={serviceEndpoint}
                                 />
                             ) : (
                                 /* Text-only fallback for older sessions without temporal data */

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from html import escape
 from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -46,6 +47,23 @@ def _fmt_pct(v: Any) -> str:
     if v is None:
         return "—"
     return f"{round(float(v) * 100, 1)}%"
+
+
+def _pdf_text(value: Any) -> str:
+    """Return ReportLab Paragraph-safe text using the built-in Helvetica font."""
+    text = str(value)
+    replacements = {
+        "\u2014": "-",
+        "\u2013": "-",
+        "\u2026": "...",
+        "\u2022": "*",
+        "\u2192": "->",
+        "\u0394": "Delta",
+        "`": "",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    return escape(text)
 
 
 def _rank_events(events: List[Dict[str, Any]], top_k: int = 5) -> List[Dict[str, Any]]:
@@ -362,21 +380,21 @@ def build_pdf(markdown_text: str, *, output_dir: Optional[str] = None) -> str:
             in_table = False
 
         if line.startswith("# "):
-            story.append(Paragraph(line[2:].strip(), h1))
+            story.append(Paragraph(_pdf_text(line[2:].strip()), h1))
         elif line.startswith("## "):
-            story.append(Paragraph(line[3:].strip(), h2))
+            story.append(Paragraph(_pdf_text(line[3:].strip()), h2))
         elif line.startswith("### "):
-            story.append(Paragraph(line[4:].strip(), h3))
+            story.append(Paragraph(_pdf_text(line[4:].strip()), h3))
         elif line.startswith("> "):
-            story.append(Paragraph("<i>" + line[2:].strip() + "</i>", note))
+            story.append(Paragraph("<i>" + _pdf_text(line[2:].strip()) + "</i>", note))
         elif line.startswith("- "):
-            story.append(Paragraph("• " + line[2:].strip(), body))
+            story.append(Paragraph("* " + _pdf_text(line[2:].strip()), body))
         elif line.strip() == "---":
             story.append(Spacer(1, 4 * mm))
         elif line.strip() == "":
             story.append(Spacer(1, 2 * mm))
         else:
-            story.append(Paragraph(line, body))
+            story.append(Paragraph(_pdf_text(line), body))
 
     if in_table and table_rows:
         story.append(_render_table(table_rows, Table, TableStyle, colors))
@@ -388,7 +406,8 @@ def build_pdf(markdown_text: str, *, output_dir: Optional[str] = None) -> str:
 def _render_table(rows, Table, TableStyle, colors):
     if not rows:
         return None
-    t = Table(rows, hAlign="LEFT")
+    safe_rows = [[_pdf_text(cell) for cell in row] for row in rows]
+    t = Table(safe_rows, hAlign="LEFT")
     t.setStyle(
         TableStyle([
             ("FONT", (0, 0), (-1, -1), "Helvetica", 9),

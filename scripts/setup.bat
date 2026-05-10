@@ -112,7 +112,7 @@ echo %INFO% [5/8] Checking GPU availability...
 nvidia-smi >nul 2>&1
 if not errorlevel 1 (
     echo   %OK% NVIDIA GPU driver detected.
-    for /f "tokens=*" %%G in ('nvidia-smi --query-gpu=name --format=csv,noheader 2^>nul') do (
+    for /f "skip=1 tokens=*" %%G in ('nvidia-smi --query-gpu=name --format=csv 2^>nul') do (
         echo   %OK% GPU: %%G
     )
 ) else (

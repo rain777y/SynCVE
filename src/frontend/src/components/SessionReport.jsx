@@ -2,7 +2,7 @@
  * SessionReport — Data-driven emotion analytics dashboard.
  * Renders structured report data using Recharts, including temporal analysis.
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
   AreaChart, Area, CartesianGrid, PieChart, Pie, Legend,
@@ -11,8 +11,6 @@ import TimelineView from './TimelineView';
 import EventSensitivityPanel from './EventSensitivityPanel';
 import { resolveServiceEndpoint } from '../lib/serviceEndpoint';
 import './SessionReport.css';
-
-const SERVICE_ENDPOINT = resolveServiceEndpoint();
 
 const EMOTION_COLORS = {
   happy: '#FFB020',
@@ -57,10 +55,16 @@ const MeasuredChart = ({ height, children }) => {
   );
 };
 
-const SessionReport = ({ report, onResume, onStop, sessionId = null }) => {
-  const [clinicalMetrics, setClinicalMetrics] = useState(null);
+const SessionReport = ({ report, onResume, onStop, sessionId = null, serviceEndpoint = null }) => {
+  const resolvedServiceEndpoint = useMemo(
+    () => serviceEndpoint || resolveServiceEndpoint(),
+    [serviceEndpoint]
+  );
+  const reportClinicalMetrics = report?.clinical_metrics || null;
+  const [clinicalMetrics, setClinicalMetrics] = useState(reportClinicalMetrics);
   const [clinicalLoading, setClinicalLoading] = useState(false);
   const [clinicalError, setClinicalError] = useState(null);
+  const [clinicalRetryKey, setClinicalRetryKey] = useState(0);
   const [overrideEvents, setOverrideEvents] = useState(null);
 
   // Stable callback for the sensitivity panel — passing an inline arrow
@@ -69,24 +73,26 @@ const SessionReport = ({ report, onResume, onStop, sessionId = null }) => {
   // parent — i.e. an infinite "flashing" loop.
   const handleEventsChange = useCallback((evs) => setOverrideEvents(evs), []);
 
-  // Lazy-load clinical metrics ONCE per sessionId. Don't put loading/data state
-  // in the deps — that re-fires the effect on every state transition, and a 4xx
-  // response (e.g. empty_session after /session/stop) leaves clinicalMetrics
-  // null, which would refetch forever.
   const fetchedFor = useRef(null);
   useEffect(() => {
+    setClinicalMetrics(reportClinicalMetrics);
+    setClinicalError(null);
+    setClinicalRetryKey(0);
+    fetchedFor.current = null;
+  }, [reportClinicalMetrics, sessionId]);
+
+  // Lazy-load clinical metrics once per session + endpoint + retry attempt.
+  // Failed fetches no longer permanently suppress metrics for the same report.
+  useEffect(() => {
     if (!sessionId) return;
-    if (fetchedFor.current === sessionId) return;
-    fetchedFor.current = sessionId;
+    const fetchKey = `${resolvedServiceEndpoint}:${sessionId}:${clinicalRetryKey}`;
+    if (fetchedFor.current === fetchKey) return;
+    fetchedFor.current = fetchKey;
 
     let cancelled = false;
     setClinicalLoading(true);
     setClinicalError(null);
-    fetch(`${SERVICE_ENDPOINT}/session/${sessionId}/clinical_metrics`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    })
+    fetch(`${resolvedServiceEndpoint}/session/${sessionId}/clinical_metrics`, { method: 'GET' })
       .then(async (r) => {
         const body = await r.json().catch(() => ({}));
         if (!r.ok) {
@@ -99,7 +105,7 @@ const SessionReport = ({ report, onResume, onStop, sessionId = null }) => {
       .finally(() => { if (!cancelled) setClinicalLoading(false); });
 
     return () => { cancelled = true; };
-  }, [sessionId]);
+  }, [sessionId, resolvedServiceEndpoint, clinicalRetryKey]);
 
   if (!report) return null;
 
@@ -113,7 +119,7 @@ const SessionReport = ({ report, onResume, onStop, sessionId = null }) => {
   } = report;
 
   const reportDownloadUrl = (fmt) => (
-    `${SERVICE_ENDPOINT}/session/${sessionId}/clinical_report?format=${fmt}&download=1`
+    `${resolvedServiceEndpoint}/session/${sessionId}/clinical_report?format=${fmt}&download=1`
   );
 
   const dominant = stats_summary.dominant || metrics.dominant || 'neutral';
@@ -316,7 +322,7 @@ const SessionReport = ({ report, onResume, onStop, sessionId = null }) => {
         <div className="chart-card chart-wide">
           <EventSensitivityPanel
             sessionId={sessionId}
-            serviceEndpoint={SERVICE_ENDPOINT}
+            serviceEndpoint={resolvedServiceEndpoint}
             initialEvents={temporal.events || []}
             onEventsChange={handleEventsChange}
             fpsEstimate={temporal?.fps_estimate || 0.5}
@@ -347,7 +353,18 @@ const SessionReport = ({ report, onResume, onStop, sessionId = null }) => {
         <div className="chart-card chart-wide">
           <h3>Clinical Metrics</h3>
           {clinicalLoading && <p>Computing clinical metrics…</p>}
-          {clinicalError && <p style={{ color: '#ff7575' }}>{clinicalError}</p>}
+          {clinicalError && (
+            <div className="clinical-error-row">
+              <p style={{ color: '#ff7575' }}>{clinicalError}</p>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setClinicalRetryKey((key) => key + 1)}
+              >
+                Retry metrics
+              </button>
+            </div>
+          )}
           {clinicalMetrics && (
             <div className="clinical-metrics-grid">
               <Metric label="Valence (mean)" value={clinicalMetrics.valence_mean} />

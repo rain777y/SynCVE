@@ -350,6 +350,7 @@ const EmotionDetector = () => {
                 onResume={handleResume}
                 onStop={handleStop}
                 sessionId={sessionId}
+                serviceEndpoint={serviceEndpoint}
               />
             )}
           </div>
