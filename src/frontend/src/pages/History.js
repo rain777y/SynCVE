@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import SessionReport from '../components/SessionReport';
+import { resolveServiceEndpoint } from '../lib/serviceEndpoint';
 import './History.css';
 
 /**
@@ -44,7 +45,7 @@ const History = () => {
     const [selectedSession, setSelectedSession] = useState(null);
     const [error, setError] = useState(null);
 
-    const serviceEndpoint = process.env.REACT_APP_SERVICE_ENDPOINT || 'http://localhost:5005';
+    const serviceEndpoint = resolveServiceEndpoint();
 
     const handleAuthenticate = async () => {
         try {

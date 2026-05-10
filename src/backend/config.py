@@ -126,6 +126,28 @@ def _get(data: dict, *keys, default=None):
     return current if current is not None else default
 
 
+def _split_csv(raw: Any) -> list:
+    """Normalize YAML lists or comma-separated env values into a string list."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        values = raw.split(",")
+    elif isinstance(raw, (list, tuple, set)):
+        values = raw
+    else:
+        values = [raw]
+    return [str(item).strip() for item in values if str(item).strip()]
+
+
+def _merge_cors_origins(configured: Any) -> list:
+    """Merge tracked CORS origins with deployment-specific origins from .env."""
+    merged = []
+    for origin in _split_csv(configured) + _split_csv(os.getenv("CORS_ORIGINS")):
+        if origin not in merged:
+            merged.append(origin)
+    return merged or ["http://localhost:3000"]
+
+
 # ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
@@ -331,7 +353,7 @@ def load_config() -> AppConfig:
             port=int(_get(cfg, "server", "port", default=5005)),
             debug=bool(_get(cfg, "server", "debug", default=False)),
             max_content_length=int(_get(cfg, "server", "max_content_length", default=16777216)),
-            cors_origins=_get(cfg, "server", "cors_origins", default=["http://localhost:3000"]),
+            cors_origins=_merge_cors_origins(_get(cfg, "server", "cors_origins", default=["http://localhost:3000"])),
         ),
         gpu=GPUConfig(
             cuda_visible_devices=str(_get(cfg, "gpu", "cuda_visible_devices", default="0")),

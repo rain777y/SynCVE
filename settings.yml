@@ -15,6 +15,7 @@ server:
   max_content_length: 16777216  # 16 MB
   cors_origins:
     - "http://localhost:3000"
+    - "http://127.0.0.1:3000"
 
 gpu:
   cuda_visible_devices: "0"    # "0" = first GPU, "-1" = CPU only

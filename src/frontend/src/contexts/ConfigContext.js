@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { resolveServiceEndpoint } from '../lib/serviceEndpoint';
 
 const ConfigContext = createContext({ config: null, serviceEndpoint: '' });
 
 export function ConfigProvider({ children }) {
   const [config, setConfig] = useState(null);
-  const serviceEndpoint = process.env.REACT_APP_SERVICE_ENDPOINT || 'http://localhost:5005';
+  const serviceEndpoint = useMemo(() => resolveServiceEndpoint(), []);
 
   useEffect(() => {
     const controller = new AbortController();

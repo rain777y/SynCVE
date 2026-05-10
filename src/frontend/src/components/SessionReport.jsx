@@ -9,10 +9,10 @@ import {
 } from 'recharts';
 import TimelineView from './TimelineView';
 import EventSensitivityPanel from './EventSensitivityPanel';
+import { resolveServiceEndpoint } from '../lib/serviceEndpoint';
 import './SessionReport.css';
 
-const SERVICE_ENDPOINT =
-  process.env.REACT_APP_SERVICE_ENDPOINT || 'http://localhost:5005';
+const SERVICE_ENDPOINT = resolveServiceEndpoint();
 
 const EMOTION_COLORS = {
   happy: '#FFB020',
