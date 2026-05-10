@@ -103,9 +103,9 @@ set "PID_LIST=%~2"
 if "%PID_LIST%"=="" exit /b 0
 for %%P in (%PID_LIST%) do (
     if /i "%MODE%"=="FORCE" (
-        taskkill /PID %%P /F >nul 2>&1
+        taskkill /PID %%~P /T /F >nul 2>&1
     ) else (
-        taskkill /PID %%P >nul 2>&1
+        taskkill /PID %%~P /T >nul 2>&1
     )
 )
 exit /b 0
