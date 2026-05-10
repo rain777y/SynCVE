@@ -1,0 +1,65 @@
+# SynCVE Python Dependencies
+#
+# Setup (recommended):
+#   conda env create -f environment.yml
+#   conda activate SynCVE
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+# The conda env provides: Python 3.10, CUDA 11.8, cuDNN 8.9
+# PyTorch CUDA must be installed separately (special index URL)
+
+# --- Core ---
+numpy>=1.22.0,<2.0            # TF 2.10 incompatible with NumPy 2.x
+pandas>=2.0,<3.0
+requests>=2.28,<3.0
+python-dotenv>=1.0,<2.0
+pydantic>=2.0,<3.0
+PyYAML>=6.0,<7.0
+setuptools<81                  # mtcnn requires pkg_resources (removed in 81+)
+
+# --- Deep Learning ---
+tensorflow==2.10.1             # last version with native Windows GPU (CUDA 11.8)
+# torch + torchvision: install separately with CUDA support:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+
+# --- Computer Vision ---
+opencv-python>=4.8,<5.0
+Pillow>=10.0,<12.0
+deepface>=0.0.99,<0.1.0
+mtcnn==0.1.1                   # DeepFace detector plugin
+retina-face>=0.0.14,<0.0.18   # DeepFace detector plugin
+
+# --- Web ---
+Flask>=3.0,<4.0
+flask-cors>=4.0,<5.0
+flask-limiter>=3.0,<4.0
+gunicorn>=21.2,<23.0           # production WSGI server (Linux only)
+
+# --- GenAI & Storage ---
+google-genai>=1.65,<2.0        # unified SDK (supports API key + Vertex AI)
+supabase>=2.5,<3.0
+
+# --- Evaluation & Visualization ---
+scikit-learn>=1.3,<2.0
+matplotlib>=3.7,<4.0
+seaborn>=0.13,<1.0
+tqdm>=4.65,<5.0
+
+# --- Change-point detection (Axis 1A — event detector) ---
+ruptures>=1.1.9,<2.0           # PELT / BinSeg / Window CPD on emotion-prob streams
+scipy>=1.10,<2.0               # signal processing for CUSUM, sliding-window variance
+
+# --- Clinical Report Export (Axis 4) ---
+reportlab>=4.0,<5.0            # PDF generation for clinical reports
+
+# --- Dashboard ---
+streamlit>=1.30,<2.0
+
+# --- Testing & Code Quality ---
+pytest>=7.0,<9.0
+pytest-cov>=4.0,<6.0
+pytest-mock>=3.0,<4.0
+pytest-timeout>=2.2,<3.0
+pytest-xdist>=3.5,<4.0
+black>=23.0,<25.0
+flake8>=6.0,<8.0

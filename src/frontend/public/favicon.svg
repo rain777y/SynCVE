@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- SynCVE · editorial glasses favicon
+       Ink on cream paper, with a vermillion live-signal glint matching the app. -->
+
+  <!-- Paper background -->
+  <rect x="0" y="0" width="64" height="64" rx="12" fill="#efeae0"/>
+
+  <!-- Hairline rule across the bridge — editorial signature -->
+  <line x1="6" y1="32" x2="58" y2="32" stroke="#14130f" stroke-width="0.6" opacity="0.16"/>
+
+  <!-- Lenses -->
+  <circle cx="20" cy="32" r="11" fill="#f6f1e6" stroke="#14130f" stroke-width="2.4"/>
+  <circle cx="44" cy="32" r="11" fill="#f6f1e6" stroke="#14130f" stroke-width="2.4"/>
+
+  <!-- Bridge -->
+  <path d="M30.4 32 Q32 29.6 33.6 32" stroke="#14130f" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+
+  <!-- Temple stems -->
+  <path d="M9.5 31 L4 27"  stroke="#14130f" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M54.5 31 L60 27" stroke="#14130f" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- Subtle lens shine -->
+  <path d="M14 26 Q16.5 23.5 20 23.5" stroke="#14130f" stroke-width="0.8" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <path d="M38 26 Q40.5 23.5 44 23.5" stroke="#14130f" stroke-width="0.8" stroke-linecap="round" fill="none" opacity="0.35"/>
+
+  <!-- Vermillion live-signal glint on the right lens -->
+  <circle cx="48" cy="29" r="2.2" fill="#c63a26"/>
+
+  <!-- Tiny ink section-mark below -->
+  <circle cx="32" cy="50" r="0.9" fill="#14130f" opacity="0.55"/>
+</svg>

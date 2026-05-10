@@ -1,0 +1,86 @@
+{
+  "n_frames": 240,
+  "ground_truth_changepoints": [
+    30,
+    60,
+    90,
+    120,
+    150,
+    180,
+    210
+  ],
+  "system_events": [
+    {
+      "frame_idx": 28,
+      "from_emotion": "neutral",
+      "to_emotion": "happy",
+      "magnitude": 1.0,
+      "confidence": 0.9325,
+      "methods": [
+        "cusum",
+        "pelt",
+        "sliding"
+      ]
+    },
+    {
+      "frame_idx": 59,
+      "from_emotion": "happy",
+      "to_emotion": "neutral",
+      "magnitude": 1.0,
+      "confidence": 0.8763,
+      "methods": [
+        "cusum",
+        "pelt",
+        "sliding"
+      ]
+    },
+    {
+      "frame_idx": 89,
+      "from_emotion": "neutral",
+      "to_emotion": "disgust",
+      "magnitude": 1.0,
+      "confidence": 0.8868,
+      "methods": [
+        "cusum",
+        "pelt",
+        "sliding"
+      ]
+    },
+    {
+      "frame_idx": 150,
+      "from_emotion": "neutral",
+      "to_emotion": "fear",
+      "magnitude": 1.0,
+      "confidence": 0.8961,
+      "methods": [
+        "cusum",
+        "pelt",
+        "sliding"
+      ]
+    },
+    {
+      "frame_idx": 180,
+      "from_emotion": "fear",
+      "to_emotion": "neutral",
+      "magnitude": 1.0,
+      "confidence": 0.916,
+      "methods": [
+        "cusum",
+        "pelt",
+        "sliding"
+      ]
+    },
+    {
+      "frame_idx": 210,
+      "from_emotion": "neutral",
+      "to_emotion": "sad",
+      "magnitude": 1.0,
+      "confidence": 0.898,
+      "methods": [
+        "cusum",
+        "pelt",
+        "sliding"
+      ]
+    }
+  ]
+}

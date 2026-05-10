@@ -1,0 +1,26 @@
+# SynCVE Conda Environment
+#
+# One-command setup:
+#   conda env create -f environment.yml && conda activate SynCVE && pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+# Or use the setup script:
+#   scripts\setup.bat
+
+name: SynCVE
+
+channels:
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  - cudatoolkit=11.8
+  - cudnn=8.9
+  - pip
+  - pip:
+      - -r requirements.txt
+
+variables:
+  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+  TF_CPP_MIN_LOG_LEVEL: "2"

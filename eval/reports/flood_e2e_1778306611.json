@@ -1,0 +1,91 @@
+{
+  "backend": "http://127.0.0.1:5005",
+  "ts": "2026-05-09T14:02:10.840808",
+  "health": {
+    "status": 200,
+    "latency_ms": 6,
+    "ok": true
+  },
+  "session_id": "16798847-65a2-4c65-9d7a-8284fdd871f3",
+  "analyze_burst": {
+    "n": 20,
+    "workers": 8,
+    "success": 20,
+    "wall_ms": 63411,
+    "per_request": {
+      "n": 20,
+      "min": 13353.0,
+      "p50": 24075.3,
+      "p95": 27424.6,
+      "max": 32405.6,
+      "mean": 23349.3
+    },
+    "first_errors": []
+  },
+  "events_cache": {
+    "cold": {
+      "n": 10,
+      "min": 3.8,
+      "p50": 17.0,
+      "p95": 27.5,
+      "max": 29.7,
+      "mean": 16.6
+    },
+    "warm": {
+      "n": 10,
+      "min": 3.7,
+      "p50": 28.5,
+      "p95": 32.9,
+      "max": 33.1,
+      "mean": 24.4
+    },
+    "speedup_x": 0.59
+  },
+  "clinical_metrics_cache": {
+    "cold": {
+      "n": 10,
+      "min": 4.7,
+      "p50": 27.7,
+      "p95": 30.7,
+      "max": 33.9,
+      "mean": 21.6
+    },
+    "warm": {
+      "n": 10,
+      "min": 4.3,
+      "p50": 19.8,
+      "p95": 28.2,
+      "max": 29.2,
+      "mean": 18.0
+    },
+    "speedup_x": 1.4
+  },
+  "clinical_report": {
+    "md_status": 200,
+    "md_ms": 4,
+    "pdf_status": 200,
+    "pdf_ms": 65,
+    "pdf_bytes": 4921
+  },
+  "concurrent_pdf": {
+    "n": 4,
+    "wall_ms": 75,
+    "per_request": {
+      "n": 4,
+      "min": 50.0,
+      "p50": 61.6,
+      "p95": 64.9,
+      "max": 69.0,
+      "mean": 60.6
+    },
+    "parallel_score": 3.29,
+    "all_success": true
+  },
+  "async_stop": {
+    "submit_ms": 28,
+    "polls": 31,
+    "total_ms": 15743,
+    "final_status": "done",
+    "elapsed_ms_in_job": 15442
+  }
+}

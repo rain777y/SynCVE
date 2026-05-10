@@ -1,0 +1,12 @@
+experiment: ablation_detector
+description: "Face detector comparison study"
+
+dataset: fer2013
+preprocessing: full_preprocess
+
+detectors:
+  - retinaface
+  - mtcnn
+  - centerface
+  - opencv
+  - ssd

@@ -1,0 +1,266 @@
+/* =====================================================================
+ * SynCVE — Editorial Clinical Instrument
+ *
+ * A research-instrument aesthetic: warm paper, deep ink, hairline rules,
+ * and a single signal-red reserved for the live recording state.
+ * ===================================================================== */
+
+:root {
+  /* ---------- Paper & ink ---------- */
+  --paper:        #efeae0;          /* warm cream — primary surface */
+  --paper-2:      #e7e1d2;          /* slightly deeper inset */
+  --paper-3:      #ddd5c2;          /* still deeper / hover wash */
+  --paper-frame:  #1a1916;          /* near-black — the specimen frame */
+  --paper-soft:   #f6f1e6;          /* a touch above paper for contrast */
+
+  --ink:          #14130f;          /* primary text */
+  --ink-2:        #2a2823;          /* secondary text */
+  --ink-3:        #6f6a5f;          /* muted text */
+  --ink-4:        #948c7d;          /* very muted / metadata */
+
+  --rule:         rgba(20, 19, 15, 0.18);
+  --rule-strong:  rgba(20, 19, 15, 0.55);
+  --rule-ink:     #14130f;
+
+  /* ---------- The signal ---------- */
+  /* Used VERY sparingly — only for active recording state and live indicators. */
+  --signal:       #c63a26;          /* vermillion */
+  --signal-deep:  #9b2818;
+  --signal-soft:  #ead2c1;
+
+  /* ---------- Analytic accents ---------- */
+  --ochre:        #b88128;
+  --moss:         #5b7a3a;
+  --slate:        #4a5566;
+  --plum:         #5e3f6b;
+
+  /* ---------- Editorial emotion palette (keys match data) ---------- */
+  --e-angry:    #b53326;
+  --e-happy:    #c8801a;
+  --e-sad:      #4a5566;
+  --e-fear:     #5e3f6b;
+  --e-surprise: #b8932a;
+  --e-disgust:  #5b7a3a;
+  --e-neutral:  #2a2823;
+
+  /* ---------- Type ---------- */
+  --font-display: "Fraunces", "Iowan Old Style", "Georgia", serif;
+  --font-body:    "Geist", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "JetBrains Mono", "SFMono-Regular", "Menlo", "Consolas", monospace;
+
+  /* ---------- Spacing tokens ---------- */
+  --rail: 1px;
+  --rail-strong: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  /* legacy aliases — kept so any inline styles referencing them stay sane */
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --background-dark-1: var(--paper);
+  --background-dark-2: var(--paper-2);
+  --background-dark-3: var(--paper-3);
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-muted: var(--ink-3);
+  --border-color: var(--rule);
+  --border-color-hover: var(--rule-strong);
+  --glass-bg: var(--paper-2);
+  --glass-border: var(--rule);
+  --shadow-sm: 0 1px 0 0 var(--rule);
+  --shadow-md: 0 1px 0 0 var(--rule);
+  --shadow-lg: 0 1px 0 0 var(--rule);
+  --shadow-xl: 0 1px 0 0 var(--rule);
+}
+
+/* =====================================================================
+ * Base
+ * ===================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-feature-settings: "ss01", "ss02", "cv11";
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+  background-color: var(--paper);
+}
+
+/* Subtle paper grain — drawn with svg noise filter, very low opacity. */
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* =====================================================================
+ * Typographic primitives
+ * ===================================================================== */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 360;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  margin: 0;
+  font-variation-settings: "opsz" 80, "SOFT" 50;
+}
+
+p { margin: 0; }
+
+code, kbd, pre {
+  font-family: var(--font-mono);
+}
+
+/* Section eyebrow — small uppercase mono with paragraph mark */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.eyebrow::before {
+  content: "§ ";
+  color: var(--signal);
+  margin-right: 2px;
+}
+
+/* Tabular mono for numbers */
+.mono,
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "zero";
+}
+
+/* Hairline horizontal rule */
+.rule {
+  height: 1px;
+  background: var(--rule);
+  border: 0;
+  margin: 0;
+}
+
+.rule--ink {
+  background: var(--ink);
+  height: 1px;
+}
+
+/* =====================================================================
+ * Form controls — paper-native
+ * ===================================================================== */
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--ink) 50%) calc(100% - 14px) 50% / 6px 6px no-repeat,
+    var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  padding: 8px 28px 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+select:hover:not(:disabled) {
+  border-color: var(--ink);
+  background-color: var(--paper-soft);
+}
+
+select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* =====================================================================
+ * Reusable instrument primitives
+ * ===================================================================== */
+
+/* "card" → on this site, a paper inset framed by a hairline rule */
+.glass,
+.panel {
+  background: var(--paper-soft);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+}
+
+.gradient-bg,
+.gradient-bg-alt {
+  background: var(--paper);
+}
+
+.glow,
+.glow-hover:hover {
+  box-shadow: none;
+}
+
+.transition-all {
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* The single approved animation — recording pulse */
+@keyframes signal-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(198, 58, 38, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(198, 58, 38, 0);
+  }
+}
+
+@keyframes ink-rise {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes hairline-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* Reduced motion — respect it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

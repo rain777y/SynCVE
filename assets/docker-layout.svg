@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 280" fill="none">
+  <defs>
+    <linearGradient id="dlBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c0a1d"/><stop offset="100%" stop-color="#141030"/>
+    </linearGradient>
+    <filter id="dlShadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <marker id="dlArrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#2496ED"/>
+    </marker>
+  </defs>
+  <rect width="880" height="280" rx="12" fill="url(#dlBg)"/>
+  <text x="440" y="28" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" fill="#64748b" letter-spacing="3" font-weight="500">DOCKER COMPOSE ORCHESTRATION</text>
+
+  <!-- Container: Backend -->
+  <g filter="url(#dlShadow)" transform="translate(30,48)">
+    <rect width="240" height="210" rx="10" fill="#1a1a2e" stroke="#a855f7" stroke-width="1"/>
+    <rect width="240" height="32" rx="10" fill="#a855f7" opacity="0.15"/>
+    <rect x="0" y="22" width="240" height="10" fill="#1a1a2e"/>
+    <text x="120" y="22" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#c4b5fd" font-weight="700">backend</text>
+    <g font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#94a3b8">
+      <text x="16" y="52">NVIDIA CUDA 11.8 Runtime</text>
+      <text x="16" y="70">Python 3.10 + Flask 3.x</text>
+      <text x="16" y="88">DeepFace + TF + PyTorch</text>
+      <text x="16" y="106">Gunicorn WSGI Server</text>
+      <text x="16" y="132" fill="#64748b" font-size="9">PORTS</text>
+      <text x="60" y="132" fill="#a5b4fc" font-size="10">5005:5005</text>
+      <text x="16" y="150" fill="#64748b" font-size="9">VOLUMES</text>
+      <text x="70" y="150" fill="#a5b4fc" font-size="10">settings.yml (ro)</text>
+      <text x="70" y="165" fill="#a5b4fc" font-size="10">deepface-models</text>
+      <text x="16" y="185" fill="#64748b" font-size="9">GPU</text>
+      <text x="60" y="185" fill="#76B900" font-size="10">1x NVIDIA (reserved)</text>
+      <text x="16" y="203" fill="#64748b" font-size="9">HEALTH</text>
+      <text x="60" y="203" fill="#34d399" font-size="10">curl /health (30s)</text>
+    </g>
+  </g>
+
+  <!-- Container: Frontend -->
+  <g filter="url(#dlShadow)" transform="translate(320,48)">
+    <rect width="240" height="210" rx="10" fill="#1a1a2e" stroke="#3b82f6" stroke-width="1"/>
+    <rect width="240" height="32" rx="10" fill="#3b82f6" opacity="0.15"/>
+    <rect x="0" y="22" width="240" height="10" fill="#1a1a2e"/>
+    <text x="120" y="22" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#93c5fd" font-weight="700">frontend</text>
+    <g font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#94a3b8">
+      <text x="16" y="52">nginx:alpine runtime</text>
+      <text x="16" y="70">React 18 production build</text>
+      <text x="16" y="88">SPA routing + API proxy</text>
+      <text x="16" y="106">Static asset serving</text>
+      <text x="16" y="132" fill="#64748b" font-size="9">PORTS</text>
+      <text x="60" y="132" fill="#93c5fd" font-size="10">3000:3000</text>
+      <text x="16" y="150" fill="#64748b" font-size="9">PROXY</text>
+      <text x="60" y="150" fill="#93c5fd" font-size="10">/analyze → backend</text>
+      <text x="60" y="165" fill="#93c5fd" font-size="10">/session → backend</text>
+      <text x="16" y="185" fill="#64748b" font-size="9">DEPENDS</text>
+      <text x="70" y="185" fill="#fbbf24" font-size="10">backend (healthy)</text>
+      <text x="16" y="203" fill="#64748b" font-size="9">BODY</text>
+      <text x="60" y="203" fill="#94a3b8" font-size="10">max 16 MB upload</text>
+    </g>
+  </g>
+
+  <!-- Container: Eval -->
+  <g filter="url(#dlShadow)" transform="translate(610,48)">
+    <rect width="240" height="210" rx="10" fill="#1a1a2e" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+    <rect width="240" height="32" rx="10" fill="#64748b" opacity="0.1"/>
+    <rect x="0" y="22" width="240" height="10" fill="#1a1a2e"/>
+    <text x="120" y="22" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#94a3b8" font-weight="700">eval</text>
+    <text x="186" y="22" font-family="'Segoe UI',system-ui,sans-serif" font-size="8" fill="#64748b">(on-demand)</text>
+    <g font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#94a3b8">
+      <text x="16" y="52">Extends backend-base</text>
+      <text x="16" y="70">Benchmark scripts</text>
+      <text x="16" y="88">Ablation study runner</text>
+      <text x="16" y="106">Accuracy &amp; latency metrics</text>
+      <text x="16" y="132" fill="#64748b" font-size="9">PROFILE</text>
+      <text x="70" y="132" fill="#94a3b8" font-size="10">--profile eval</text>
+      <text x="16" y="150" fill="#64748b" font-size="9">VOLUMES</text>
+      <text x="70" y="150" fill="#94a3b8" font-size="10">eval/results</text>
+      <text x="70" y="165" fill="#94a3b8" font-size="10">eval/datasets</text>
+      <text x="70" y="180" fill="#94a3b8" font-size="10">eval/cache</text>
+      <text x="16" y="200" fill="#64748b" font-size="9">GPU</text>
+      <text x="60" y="200" fill="#76B900" font-size="10">1x NVIDIA (reserved)</text>
+    </g>
+  </g>
+
+  <!-- Arrow: Frontend → Backend -->
+  <line x1="320" y1="140" x2="274" y2="140" stroke="#2496ED" stroke-width="1.2" marker-end="url(#dlArrow)" stroke-dasharray="3,2"/>
+  <text x="297" y="134" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="8" fill="#2496ED">proxy</text>
+</svg>

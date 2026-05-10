@@ -1,0 +1,118 @@
+# SynCVE Application Settings (tracked in git)
+# Secrets (API keys) go in .env (gitignored)
+
+preprocess:
+  enable_sr: true
+  sr_min_size: 256
+  enable_clahe: true
+  enable_unsharp: true
+  adaptive_threshold: 128          # skip CLAHE+unsharp when original min dim < this
+
+server:
+  host: "0.0.0.0"
+  port: 5005
+  debug: false
+  max_content_length: 16777216  # 16 MB
+  cors_origins:
+    - "http://localhost:3000"
+
+gpu:
+  cuda_visible_devices: "0"    # "0" = first GPU, "-1" = CPU only
+  tf_memory_fraction: 0.8
+  tf_allow_growth: true
+  tf_log_level: 2              # 0=all 1=info 2=warn 3=error
+  omp_num_threads: 0           # 0 = auto-detect
+
+client:
+  detection_interval: 2000       # ms, frontend capture rate
+
+deepface:
+  # retinaface+mtcnn verified working in Docker (Python 3.10 + TF 2.10.1)
+  # on 2026-03-21. KerasTensor issue only affects Python 3.13.
+  detector_backend: "retinaface"
+  model_name: "Facenet"
+  distance_metric: "cosine"
+  anti_spoofing: true
+  confidence_threshold: 0.1
+  ensemble:
+    enabled: true
+    detectors:
+      - retinaface
+      - mtcnn
+    weights:
+      retinaface: 0.50
+      mtcnn: 0.50
+
+gemini:
+  text_model: "gemini-2.5-flash"
+  image_model: "gemini-2.5-flash-image"
+  fallback_image_models:
+    - "gemini-3.1-flash-image-preview"
+    - "gemini-3-pro-image-preview"
+  request_timeout: 120
+  max_retries: 3
+  retry_base_delay: 1.0
+
+report:
+  mode: "fast"                 # "fast" = structured JSON only, "full" = fast + AI image
+  noise_floor: 0.0
+  keyframe_limit: 4
+  visual_aspect_ratio: "16:9"
+  visual_style_preset: "futuristic"
+
+temporal:
+  ema_alpha: 0.2               # data-driven optimal (ablation: 0.2 > 0.3, see eval/reports/)
+  transition_threshold: 0.15   # min score delta to register an emotion transition
+  volatility_window: 10        # sliding window size for std dev calculation
+  fps_estimate: 0.5            # frames per second for duration conversion
+
+# Axis 1A — Event-level change-point detection on emotion probability streams.
+# Three methods are supported and can be ensembled (events confirmed when
+# >= consensus_min_methods detect within tolerance_frames).
+events:
+  enabled: true
+  method: "ensemble"            # "sliding" | "cusum" | "pelt" | "ensemble"
+  consensus_min_methods: 2      # in "ensemble" mode, n methods must agree
+
+  sliding:
+    window: 5                   # frames per side; total window = 2*window
+    z_threshold: 2.5            # z-score threshold on smoothed Δp magnitude
+    min_magnitude: 0.10         # absolute Δp floor; reject below this
+
+  cusum:
+    drift: 0.005                # allowable drift before alarm
+    threshold: 0.15             # cumulative shift threshold
+
+  pelt:
+    model: "rbf"                # ruptures cost model: "l2" | "rbf" | "normal"
+    penalty: 3.0                # BIC penalty (higher = fewer change points)
+    min_size: 3                 # minimum segment length
+
+  refractory_frames: 3          # suppress duplicate events within N frames
+
+# Axis 1C — Confidence-aware fusion (replaces fixed 50/50 weighting).
+# Per-detector weights are derived from the entropy of each backend's emotion
+# distribution: low-entropy (peaked) backends get higher weight.
+fusion:
+  method: "uncertainty"         # "fixed" (legacy 50/50) | "uncertainty" | "max_confidence"
+  temperature: 1.0              # softmax temperature for calibration
+  entropy_floor: 0.05           # avoid divide-by-zero on perfectly peaked dists
+  blend_with_fixed: 0.0         # 0..1 — blend uncertainty weights with config weights
+
+# Axis 1A — Clinical metrics (research outputs for clinical interview scenarios).
+clinical:
+  enabled: true
+  valence_map:                  # signed valence per emotion for affect_blunting / drift
+    happy: 1.0
+    surprise: 0.5
+    neutral: 0.0
+    fear: -0.7
+    sad: -0.8
+    disgust: -0.6
+    angry: -0.9
+  affect_blunting_window: 30    # frames over which to compute expressive variance
+  reaction_latency_max_sec: 3.0 # max plausible reaction latency for trigger->event match
+  incongruence_window_sec: 2.0  # window matched against ASR semantic valence (when present)
+
+supabase:
+  bucket_name: "syn_cve_assets"

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 28" fill="none">
+  <rect width="110" height="28" rx="6" fill="#1e293b"/>
+  <rect width="50" height="28" rx="6" fill="#64748b"/>
+  <rect x="44" width="6" height="28" fill="#64748b"/>
+  <text x="25" y="18" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="600" fill="white">Flask</text>
+  <text x="80" y="18" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="500" fill="#94a3b8">3.x</text>
+</svg>
